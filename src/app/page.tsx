@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import StageCanvas from '@/components/StageCanvas';
 import PerformBar from '@/components/PerformBar';
 import ChatPanel from '@/components/ChatPanel';
+import CharacterCreator from '@/components/CharacterCreator';
 import { PRESET_CHARACTERS } from '@/data/characters';
 import { buildCharacterPrompt, buildGroupPrompt } from '@/ai/prompts';
 import { extractLyriaParams } from '@/ai/param-extractor';
@@ -30,7 +31,12 @@ function toHistory(messages: ChatMessage[], limit = 10) {
 }
 
 export default function Home() {
-  const members: BandMember[] = PRESET_CHARACTERS;
+  const [members, setMembers] = useState<BandMember[]>(PRESET_CHARACTERS);
+  const [showCreator, setShowCreator] = useState(false);
+
+  const handleAddMember = (member: BandMember) => {
+    setMembers((prev) => [...prev, member]);
+  };
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatMode, setChatMode] = useState<ChatMode>('group');
@@ -229,14 +235,36 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[var(--stage-bg,#0a0a14)]">
       {/* Stage: top 65vh */}
-      <div className="w-full shrink-0" style={{ height: '65vh' }}>
+      <div className="w-full shrink-0 relative" style={{ height: '65vh' }}>
         <StageCanvas
           members={members}
           isPlaying={isPlaying}
           energy={energy}
           onCharacterClick={handleCharacterClick}
         />
+        {/* 自建乐手按钮 */}
+        <button
+          onClick={() => setShowCreator(true)}
+          className="absolute top-3 right-3 px-3 py-1.5 rounded-lg text-xs font-bold transition-all z-10"
+          style={{
+            background: 'rgba(13,13,26,0.85)',
+            border: '1px solid #00ffff',
+            color: '#00ffff',
+            backdropFilter: 'blur(4px)',
+            boxShadow: '0 0 10px rgba(0,255,255,0.2)',
+          }}
+        >
+          ＋ 自建乐手
+        </button>
       </div>
+
+      {/* Character Creator Modal */}
+      {showCreator && (
+        <CharacterCreator
+          onAdd={handleAddMember}
+          onClose={() => setShowCreator(false)}
+        />
+      )}
 
       {/* Perform bar */}
       <div className="shrink-0">
