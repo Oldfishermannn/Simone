@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import StageCanvas from '@/components/StageCanvas';
 import PerformBar from '@/components/PerformBar';
 import ChatPanel from '@/components/ChatPanel';
 import { PRESET_CHARACTERS } from '@/data/characters';
 import { buildCharacterPrompt, buildGroupPrompt } from '@/ai/prompts';
+import { extractLyriaParams } from '@/ai/param-extractor';
+import { startMusic, stopMusic } from '@/audio/lyria-engine';
+import { getEnergyLevels } from '@/canvas/beat-sync';
 import type { BandMember, ChatMessage, ChatMode, EnergyLevels } from '@/types';
 
 const ZERO_ENERGY: EnergyLevels = { low: 0, mid: 0, high: 0, overall: 0 };
@@ -36,7 +39,9 @@ export default function Home() {
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasPerformed, setHasPerformed] = useState(false);
-  const [energy] = useState<EnergyLevels>(ZERO_ENERGY);
+  const [energy, setEnergy] = useState<EnergyLevels>(ZERO_ENERGY);
+  const [isStartingShow, setIsStartingShow] = useState(false);
+  const rafRef = useRef<number>(0);
 
   // Track if welcome message was sent
   const welcomeSent = useRef(false);
@@ -170,13 +175,51 @@ export default function Home() {
     }
   };
 
-  const handleStartShow = () => {
-    setIsPlaying(true);
-    setHasPerformed(true);
+  // Energy polling loop via requestAnimationFrame
+  const startEnergyPolling = useCallback(() => {
+    const poll = () => {
+      setEnergy(getEnergyLevels());
+      rafRef.current = requestAnimationFrame(poll);
+    };
+    rafRef.current = requestAnimationFrame(poll);
+  }, []);
+
+  const stopEnergyPolling = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+    setEnergy(ZERO_ENERGY);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  const handleStartShow = async () => {
+    if (isStartingShow || isPlaying) return;
+    setIsStartingShow(true);
+    try {
+      const params = await extractLyriaParams(messages, members);
+      console.log('[Lyria] Params:', params);
+      await startMusic(params);
+      setIsPlaying(true);
+      setHasPerformed(true);
+      startEnergyPolling();
+    } catch (err) {
+      console.error('[handleStartShow] Error:', err);
+    } finally {
+      setIsStartingShow(false);
+    }
   };
 
-  const handleStop = () => {
+  const handleStop = async () => {
+    stopEnergyPolling();
     setIsPlaying(false);
+    await stopMusic();
   };
 
   const handleExportSheet = () => {
@@ -199,7 +242,7 @@ export default function Home() {
       <div className="shrink-0">
         <PerformBar
           isPlaying={isPlaying}
-          isLoading={false}
+          isLoading={isStartingShow}
           onStartShow={handleStartShow}
           onStop={handleStop}
           onExportSheet={handleExportSheet}
