@@ -5,12 +5,14 @@ import StageCanvas from '@/components/StageCanvas';
 import PerformBar from '@/components/PerformBar';
 import ChatPanel from '@/components/ChatPanel';
 import CharacterCreator from '@/components/CharacterCreator';
+import SheetMusicModal from '@/components/SheetMusicModal';
 import { PRESET_CHARACTERS } from '@/data/characters';
 import { buildCharacterPrompt, buildGroupPrompt } from '@/ai/prompts';
 import { extractLyriaParams } from '@/ai/param-extractor';
+import { generateSheetMusic } from '@/ai/sheet-generator';
 import { startMusic, stopMusic } from '@/audio/lyria-engine';
 import { getEnergyLevels } from '@/canvas/beat-sync';
-import type { BandMember, ChatMessage, ChatMode, EnergyLevels } from '@/types';
+import type { BandMember, ChatMessage, ChatMode, EnergyLevels, LyriaParams, SheetPart } from '@/types';
 
 const ZERO_ENERGY: EnergyLevels = { low: 0, mid: 0, high: 0, overall: 0 };
 
@@ -48,6 +50,11 @@ export default function Home() {
   const [energy, setEnergy] = useState<EnergyLevels>(ZERO_ENERGY);
   const [isStartingShow, setIsStartingShow] = useState(false);
   const rafRef = useRef<number>(0);
+  const lastParamsRef = useRef<LyriaParams | null>(null);
+
+  const [sheetParts, setSheetParts] = useState<SheetPart[]>([]);
+  const [showSheetModal, setShowSheetModal] = useState(false);
+  const [isGeneratingSheet, setIsGeneratingSheet] = useState(false);
 
   // Track if welcome message was sent
   const welcomeSent = useRef(false);
@@ -211,6 +218,7 @@ export default function Home() {
     try {
       const params = await extractLyriaParams(messages, members);
       console.log('[Lyria] Params:', params);
+      lastParamsRef.current = params;
       await startMusic(params);
       setIsPlaying(true);
       setHasPerformed(true);
@@ -228,8 +236,25 @@ export default function Home() {
     await stopMusic();
   };
 
-  const handleExportSheet = () => {
-    alert('谱子导出功能即将上线！');
+  const handleExportSheet = async () => {
+    if (isGeneratingSheet) return;
+    setIsGeneratingSheet(true);
+    try {
+      // Use lastParams if available, otherwise extract fresh params
+      let params = lastParamsRef.current;
+      if (!params) {
+        params = await extractLyriaParams(messages, members);
+        lastParamsRef.current = params;
+      }
+      const parts = await generateSheetMusic(members, params, messages);
+      setSheetParts(parts);
+      setShowSheetModal(true);
+    } catch (err) {
+      console.error('[handleExportSheet]', err);
+      alert('乐谱生成失败，请稍后重试。');
+    } finally {
+      setIsGeneratingSheet(false);
+    }
   };
 
   return (
@@ -266,6 +291,15 @@ export default function Home() {
         />
       )}
 
+      {/* Sheet Music Modal */}
+      {showSheetModal && sheetParts.length > 0 && (
+        <SheetMusicModal
+          sheetParts={sheetParts}
+          members={members}
+          onClose={() => setShowSheetModal(false)}
+        />
+      )}
+
       {/* Perform bar */}
       <div className="shrink-0">
         <PerformBar
@@ -275,6 +309,7 @@ export default function Home() {
           onStop={handleStop}
           onExportSheet={handleExportSheet}
           hasPerformed={hasPerformed}
+          isGeneratingSheet={isGeneratingSheet}
         />
       </div>
 

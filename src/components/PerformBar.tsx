@@ -7,6 +7,7 @@ interface PerformBarProps {
   onStop: () => void;
   onExportSheet: () => void;
   hasPerformed: boolean;
+  isGeneratingSheet?: boolean;
 }
 
 export default function PerformBar({
@@ -16,6 +17,7 @@ export default function PerformBar({
   onStop,
   onExportSheet,
   hasPerformed,
+  isGeneratingSheet = false,
 }: PerformBarProps) {
   return (
     <div className="flex flex-row items-center justify-center gap-4 px-4 py-3 bg-[#0d0d1a] border-t border-b border-[#222]">
@@ -51,9 +53,10 @@ export default function PerformBar({
       {hasPerformed && !isPlaying && !isLoading && (
         <button
           onClick={onExportSheet}
-          className="px-5 py-2 text-sm font-semibold rounded-lg border border-cyan-400 text-cyan-400 bg-transparent hover:bg-cyan-900/30 transition-colors cursor-pointer"
+          disabled={isGeneratingSheet}
+          className="px-5 py-2 text-sm font-semibold rounded-lg border border-cyan-400 text-cyan-400 bg-transparent hover:bg-cyan-900/30 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          📄 导出谱子
+          {isGeneratingSheet ? '⏳ 生成中...' : '📄 导出谱子'}
         </button>
       )}
     </div>
