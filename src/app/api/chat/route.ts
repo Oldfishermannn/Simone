@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 
 interface HistoryMessage {
@@ -14,9 +14,9 @@ interface ChatRequestBody {
 
 export async function POST(request: Request) {
   try {
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'Missing Gemini API key' }, { status: 500 });
+      return NextResponse.json({ error: 'Missing ANTHROPIC_API_KEY' }, { status: 500 });
     }
 
     const body: ChatRequestBody = await request.json();
@@ -26,36 +26,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'userMessage is required' }, { status: 400 });
     }
 
-    const genai = new GoogleGenAI({ apiKey });
+    const client = new Anthropic({ apiKey });
 
-    const contents = [
-      ...history,
-      { role: 'user' as const, parts: [{ text: userMessage }] },
-    ];
-
-    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
-    let lastError = '';
-
-    for (const model of models) {
-      try {
-        const response = await genai.models.generateContent({
-          model,
-          contents,
-          config: { systemInstruction: systemPrompt },
-        });
-        const text = response.text ?? '';
-        return NextResponse.json({ text, model });
-      } catch (err) {
-        lastError = err instanceof Error ? err.message : String(err);
-        console.error(`[chat/route] ${model} failed:`, lastError);
-        if (lastError.includes('503') || lastError.includes('UNAVAILABLE') || lastError.includes('overloaded') || lastError.includes('404') || lastError.includes('no longer available')) {
-          continue;
-        }
-        return NextResponse.json({ error: lastError }, { status: 500 });
-      }
+    // Convert Gemini history format to Claude format
+    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    for (const msg of history) {
+      messages.push({
+        role: msg.role === 'model' ? 'assistant' : 'user',
+        content: msg.parts.map(p => p.text).join(''),
+      });
     }
+    messages.push({ role: 'user', content: userMessage });
 
-    return NextResponse.json({ error: 'All models unavailable: ' + lastError }, { status: 503 });
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages,
+    });
+
+    const text = response.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('');
+
+    return NextResponse.json({ text, model: response.model });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[chat/route] error:', msg);
