@@ -167,7 +167,7 @@ export default function JamPage() {
       const now = ctx.currentTime;
       // If we've fallen behind, jump ahead with a small gap
       if (nextPlayTimeRef.current < now) {
-        nextPlayTimeRef.current = now + 0.005;
+        nextPlayTimeRef.current = now + 0.02;
       }
       source.start(nextPlayTimeRef.current);
       nextPlayTimeRef.current += buffer.duration;
