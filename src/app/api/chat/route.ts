@@ -33,16 +33,32 @@ export async function POST(request: Request) {
       { role: 'user' as const, parts: [{ text: userMessage }] },
     ];
 
-    const response = await genai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents,
-      config: { systemInstruction: systemPrompt },
-    });
+    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash-lite'];
+    let lastError = '';
 
-    const text = response.text ?? '';
-    return NextResponse.json({ text });
+    for (const model of models) {
+      try {
+        const response = await genai.models.generateContent({
+          model,
+          contents,
+          config: { systemInstruction: systemPrompt },
+        });
+        const text = response.text ?? '';
+        return NextResponse.json({ text, model });
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+        console.error(`[chat/route] ${model} failed:`, lastError);
+        if (lastError.includes('503') || lastError.includes('UNAVAILABLE') || lastError.includes('overloaded') || lastError.includes('404') || lastError.includes('no longer available')) {
+          continue;
+        }
+        return NextResponse.json({ error: lastError }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ error: 'All models unavailable: ' + lastError }, { status: 503 });
   } catch (err) {
-    console.error('[chat/route] error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[chat/route] error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
