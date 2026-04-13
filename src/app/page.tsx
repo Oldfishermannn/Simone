@@ -174,7 +174,7 @@ export default function JamPage() {
   // ─── Audio playback with buffer queue ───
   const audioQueueRef = useRef<string[]>([]);
   const isPlayingRef = useRef(false);
-  const BUFFER_MIN = 3; // accumulate N chunks before starting playback
+  const BUFFER_MIN = 1; // start playback immediately on first chunk
 
   const drainQueue = useCallback(() => {
     const ctx = audioCtxRef.current;
