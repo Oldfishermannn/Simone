@@ -130,16 +130,10 @@ export default function JamPage() {
     animFrameRef.current = requestAnimationFrame(drawVisualizer);
   }, []);
 
-  // ─── Audio loop cache: keep recent chunks, loop them when stream stalls ───
-  const audioCacheRef = useRef<string[]>([]);
-  const CACHE_MAX = 200; // keep last ~200 chunks (~20s of audio)
-  const loopTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastChunkTimeRef = useRef(0);
-
   // ─── Audio playback with buffer queue ───
   const audioQueueRef = useRef<string[]>([]);
   const isPlayingRef = useRef(false);
-  const BUFFER_MIN = 3;
+  const BUFFER_MIN = 3; // accumulate N chunks before starting playback
 
   const drainQueue = useCallback(() => {
     const ctx = audioCtxRef.current;
@@ -181,49 +175,11 @@ export default function JamPage() {
     const ctx = audioCtxRef.current;
     if (!ctx) return;
     if (ctx.state === 'suspended') ctx.resume();
-
-    // Save to loop cache (keep last N chunks)
-    audioCacheRef.current.push(b64Data);
-    if (audioCacheRef.current.length > CACHE_MAX) {
-      audioCacheRef.current = audioCacheRef.current.slice(-CACHE_MAX);
-    }
-    lastChunkTimeRef.current = Date.now();
-
     audioQueueRef.current.push(b64Data);
+    // Wait until we have enough chunks buffered before starting
     if (!isPlayingRef.current && audioQueueRef.current.length < BUFFER_MIN) return;
     drainQueue();
   }, [drainQueue]);
-
-  // ─── Loop fill: when stream stalls, loop cached audio to keep sound going ───
-  const loopFillRef = useRef(0); // position in cache for looping
-
-  const startLoopFill = useCallback(() => {
-    if (loopTimerRef.current) return;
-    loopTimerRef.current = setInterval(() => {
-      const now = Date.now();
-      const gap = now - lastChunkTimeRef.current;
-      const cache = audioCacheRef.current;
-      const ctx = audioCtxRef.current;
-      // If no new chunk for 1.5s and we have cache, fill with cached audio
-      if (gap > 1500 && cache.length > 20 && ctx) {
-        // Feed a few cached chunks into the queue to fill the gap
-        for (let i = 0; i < 5; i++) {
-          const idx = loopFillRef.current % cache.length;
-          loopFillRef.current++;
-          audioQueueRef.current.push(cache[idx]);
-        }
-        drainQueue();
-      }
-    }, 500);
-  }, [drainQueue]);
-
-  const stopLoopFill = useCallback(() => {
-    if (loopTimerRef.current) {
-      clearInterval(loopTimerRef.current);
-      loopTimerRef.current = null;
-    }
-    loopFillRef.current = 0;
-  }, []);
 
   // ─── WebSocket connect (returns Promise that resolves when Lyria session is ready) ───
   const connectWs = useCallback((): Promise<void> => {
@@ -257,8 +213,6 @@ export default function JamPage() {
           chunkCountRef.current++;
           setChunkCount(chunkCountRef.current);
           playAudioChunk(data.data);
-          // Start loop-fill monitor on first audio chunk
-          if (chunkCountRef.current === 1) startLoopFill();
         } else if (data.type === 'status') {
           setStatus(data.message);
           // "connected" = Lyria session is ready
@@ -277,7 +231,6 @@ export default function JamPage() {
         setStatus('已断开');
         wsRef.current = null;
         lyriaReadyRef.current = false;
-        stopLoopFill();
       };
       wsRef.current = ws;
 
@@ -289,7 +242,7 @@ export default function JamPage() {
         }
       }, 15000);
     });
-  }, [drawVisualizer, playAudioChunk, startLoopFill, stopLoopFill]);
+  }, [drawVisualizer, playAudioChunk]);
 
   // ─── Send Lyria commands via WebSocket ───
   const sendWs = useCallback((data: Record<string, unknown>) => {
@@ -483,10 +436,9 @@ export default function JamPage() {
   useEffect(() => {
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      stopLoopFill();
       wsRef.current?.close();
     };
-  }, [stopLoopFill]);
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: '#0a0a14', color: '#e0e0e0' }}>
