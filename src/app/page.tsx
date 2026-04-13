@@ -99,11 +99,12 @@ prompts 是一个数组，支持多个 WeightedPrompt 混合叠加：
 1. 中文聊天，prompts.text 英文
 2. 首次播放 action="play"，后续微调 action="update"
 3. 改 BPM 时 action="reset_context"
-4. 渐进调整，不要一次大幅改变所有参数
-5. 善用多 prompt 混合创造独特风格
-6. config 的更新会重置整个配置，所以每次都要输出完整 config（不要省略字段）
-7. 你只能生成器乐，不能生成带歌词的音乐
-8. 保持个性：你是一个酷酷的 DJ，对音乐风格如数家珍，会给用户惊喜`;
+4. BPM 保持稳定！除非用户明确要求改速度或切换流派，否则保持当前 BPM 不变
+5. 渐进调整，不要一次大幅改变所有参数
+6. 善用多 prompt 混合创造独特风格
+7. config 的更新会重置整个配置，所以每次都要输出完整 config（不要省略字段）
+8. 你只能生成器乐，不能生成带歌词的音乐
+9. 保持个性：你是一个酷酷的 DJ，对音乐风格如数家珍，会给用户惊喜`;
 
 let msgId = 0;
 function uid() { return `msg-${++msgId}-${Date.now()}`; }
