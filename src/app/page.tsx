@@ -137,6 +137,8 @@ export default function JamPage() {
   const lastUpdateRef = useRef<LyriaUpdate | null>(null);
   const autoReconnectRef = useRef(false); // true = should auto-reconnect on close
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevPromptsRef = useRef<Array<{ text: string; weight: number }> | null>(null);
+  const crossfadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Auto-scroll chat ───
   useEffect(() => {
@@ -170,10 +172,12 @@ export default function JamPage() {
     animFrameRef.current = requestAnimationFrame(drawVisualizer);
   }, []);
 
-  // ─── Audio playback with buffer queue ───
+  // ─── Audio playback with adaptive buffer queue ───
   const audioQueueRef = useRef<string[]>([]);
   const isPlayingRef = useRef(false);
-  const BUFFER_MIN = 3; // accumulate N chunks before starting playback
+  const BUFFER_MIN = 3;       // initial chunks to accumulate before playback
+  const BUFFER_MAX = 12;      // max queue size — drop oldest if exceeded (jitter tolerance)
+  const AHEAD_MAX = 0.5;      // max seconds scheduled ahead of now
 
   const drainQueue = useCallback(() => {
     const ctx = audioCtxRef.current;
@@ -182,6 +186,11 @@ export default function JamPage() {
       return;
     }
     isPlayingRef.current = true;
+
+    // Jitter tolerance: if queue grows too large, drop oldest chunks to stay responsive
+    while (audioQueueRef.current.length > BUFFER_MAX) {
+      audioQueueRef.current.shift();
+    }
 
     while (audioQueueRef.current.length > 0) {
       const b64Data = audioQueueRef.current.shift()!;
@@ -202,10 +211,19 @@ export default function JamPage() {
       source.buffer = buffer;
       source.connect(analyserRef.current!);
       const now = ctx.currentTime;
+
       // If we've fallen behind, jump ahead with a small gap
       if (nextPlayTimeRef.current < now) {
         nextPlayTimeRef.current = now + 0.02;
       }
+
+      // If too far ahead, stop scheduling and keep remaining in queue
+      if (nextPlayTimeRef.current - now > AHEAD_MAX) {
+        audioQueueRef.current.unshift(b64Data);
+        setTimeout(() => drainQueue(), 100);
+        return;
+      }
+
       source.start(nextPlayTimeRef.current);
       nextPlayTimeRef.current += buffer.duration;
     }
@@ -296,6 +314,52 @@ export default function JamPage() {
     }
   }, []);
 
+  // ─── Crossfade: gradually transition from old prompts to new prompts ───
+  const CROSSFADE_STEPS = 4;
+  const CROSSFADE_INTERVAL = 400; // ms between steps
+
+  const crossfadePrompts = useCallback((
+    oldPrompts: Array<{ text: string; weight: number }>,
+    newPrompts: Array<{ text: string; weight: number }>,
+  ) => {
+    // Cancel any in-progress crossfade
+    if (crossfadeTimerRef.current) clearTimeout(crossfadeTimerRef.current);
+
+    let step = 0;
+    const doStep = () => {
+      step++;
+      const t = step / CROSSFADE_STEPS; // 0.25 → 0.5 → 0.75 → 1.0
+
+      // Blend: old weights fade out, new weights fade in
+      const blended: Array<{ text: string; weight: number }> = [];
+
+      // Old prompts with decreasing weight
+      if (t < 1.0) {
+        for (const p of oldPrompts) {
+          blended.push({ text: p.text, weight: Math.max(0.1, p.weight * (1 - t)) });
+        }
+      }
+
+      // New prompts with increasing weight
+      for (const p of newPrompts) {
+        blended.push({ text: p.text, weight: p.weight * t });
+      }
+
+      sendWs({ command: 'set_prompts', prompts: blended });
+
+      if (step < CROSSFADE_STEPS) {
+        crossfadeTimerRef.current = setTimeout(doStep, CROSSFADE_INTERVAL);
+      } else {
+        // Final step: send only new prompts at full weight
+        sendWs({ command: 'set_prompts', prompts: newPrompts });
+        prevPromptsRef.current = newPrompts;
+        crossfadeTimerRef.current = null;
+      }
+    };
+
+    doStep();
+  }, [sendWs]);
+
   // ─── Apply Lyria params from chat ───
   const applyLyriaUpdate = useCallback((update: LyriaUpdate) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
@@ -305,8 +369,16 @@ export default function JamPage() {
     autoReconnectRef.current = true;
 
     if (update.prompts && update.prompts.length > 0) {
-      sendWs({ command: 'set_prompts', prompts: update.prompts });
       setCurrentPrompt(update.prompts[0].text);
+
+      // Use crossfade if we have previous prompts (smooth transition)
+      if (prevPromptsRef.current && update.action !== 'play') {
+        crossfadePrompts(prevPromptsRef.current, update.prompts);
+      } else {
+        // First time or fresh play: set directly
+        sendWs({ command: 'set_prompts', prompts: update.prompts });
+        prevPromptsRef.current = update.prompts;
+      }
     }
 
     if (update.config && Object.keys(update.config).length > 0) {
@@ -336,7 +408,7 @@ export default function JamPage() {
         setStatus('BPM 变更，重置中...');
       }
     }
-  }, [sendWs]);
+  }, [sendWs, crossfadePrompts]);
 
   // ─── Parse AI response: extract text + JSON ───
   const parseResponse = (raw: string): { text: string; params: LyriaUpdate | null } => {
@@ -515,6 +587,7 @@ export default function JamPage() {
     return () => {
       autoReconnectRef.current = false;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (crossfadeTimerRef.current) clearTimeout(crossfadeTimerRef.current);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       wsRef.current?.close();
     };
