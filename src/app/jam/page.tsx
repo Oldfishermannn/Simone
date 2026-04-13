@@ -97,6 +97,9 @@ export default function JamPage() {
   const animFrameRef = useRef(0);
   const lyriaReadyRef = useRef(false);
   const lyriaReadyResolveRef = useRef<(() => void) | null>(null);
+  const lastUpdateRef = useRef<LyriaUpdate | null>(null);
+  const autoReconnectRef = useRef(false); // true = should auto-reconnect on close
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Auto-scroll chat ───
   useEffect(() => {
@@ -228,9 +231,14 @@ export default function JamPage() {
       ws.onerror = () => { setStatus('连接错误'); reject(new Error('WebSocket error')); };
       ws.onclose = () => {
         setWsConnected(false);
-        setStatus('已断开');
         wsRef.current = null;
         lyriaReadyRef.current = false;
+        // Auto-reconnect handled by effect
+        if (autoReconnectRef.current && lastUpdateRef.current) {
+          setStatus('重连中...');
+        } else {
+          setStatus('已断开');
+        }
       };
       wsRef.current = ws;
 
@@ -255,6 +263,10 @@ export default function JamPage() {
   const applyLyriaUpdate = useCallback((update: LyriaUpdate) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
+    // Save for auto-reconnect
+    lastUpdateRef.current = { ...lastUpdateRef.current, ...update };
+    autoReconnectRef.current = true;
+
     if (update.prompts && update.prompts.length > 0) {
       sendWs({ command: 'set_prompts', prompts: update.prompts });
       setCurrentPrompt(update.prompts[0].text);
@@ -273,6 +285,7 @@ export default function JamPage() {
         sendWs({ command: 'pause' });
         setStatus('已暂停');
       } else if (update.action === 'stop') {
+        autoReconnectRef.current = false;
         sendWs({ command: 'stop' });
         setStatus('已停止');
       } else if (update.action === 'reset_context') {
@@ -433,8 +446,28 @@ export default function JamPage() {
     '暂停',
   ];
 
+  // ─── Auto-reconnect when Lyria session times out ───
+  useEffect(() => {
+    if (!wsConnected && autoReconnectRef.current && lastUpdateRef.current) {
+      const saved = lastUpdateRef.current;
+      reconnectTimerRef.current = setTimeout(() => {
+        connectWs().then(() => {
+          applyLyriaUpdate(saved);
+        }).catch(() => {
+          setStatus('重连失败');
+          autoReconnectRef.current = false;
+        });
+      }, 1000);
+      return () => {
+        if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      };
+    }
+  }, [wsConnected, connectWs, applyLyriaUpdate]);
+
   useEffect(() => {
     return () => {
+      autoReconnectRef.current = false;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       wsRef.current?.close();
     };
@@ -471,7 +504,14 @@ export default function JamPage() {
 
         {/* Controls */}
         <div className="flex gap-2 flex-wrap">
-          <button onClick={connectWs}
+          <button onClick={() => {
+              if (wsConnected) {
+                autoReconnectRef.current = false;
+                wsRef.current?.close();
+              } else {
+                connectWs();
+              }
+            }}
             className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
             style={{ background: wsConnected ? '#f44336' : '#2196f3', color: '#fff' }}>
             {wsConnected ? '断开' : '连接 Lyria'}
@@ -481,7 +521,7 @@ export default function JamPage() {
             style={{ background: '#ff9800', color: '#fff' }}>
             暂停
           </button>
-          <button onClick={() => sendWs({ command: 'stop' })} disabled={!wsConnected}
+          <button onClick={() => { autoReconnectRef.current = false; sendWs({ command: 'stop' }); }} disabled={!wsConnected}
             className="px-3 py-2 rounded-lg text-sm cursor-pointer disabled:opacity-40"
             style={{ background: '#666', color: '#fff' }}>
             停止
