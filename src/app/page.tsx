@@ -282,12 +282,8 @@ export default function JamPage() {
     }
 
     if (update.config && Object.keys(update.config).length > 0) {
-      // Whitelist only known Lyria API fields to avoid rejection
-      const ALLOWED_KEYS = ['bpm', 'temperature', 'guidance', 'density', 'brightness', 'top_k', 'mute_bass', 'mute_drums', 'only_bass_and_drums'];
-      const safeConfig: Record<string, unknown> = {};
-      for (const key of ALLOWED_KEYS) {
-        if (key in update.config) safeConfig[key] = update.config[key];
-      }
+      // Remove scale field - Lyria API rejects string enum values from Gemini
+      const { scale: _scale, ...safeConfig } = update.config;
       if (Object.keys(safeConfig).length > 0) {
         sendWs({ command: 'set_config', config: safeConfig });
       }
