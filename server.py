@@ -37,13 +37,22 @@ async def handle_websocket(request):
     await ws.prepare(request)
     print("[连接] 浏览器已连接")
 
+    async def send_log(msg):
+        try:
+            await ws.send_json({"type": "log", "message": msg})
+        except:
+            pass
+
     client = genai.Client(api_key=API_KEY, http_options={"api_version": "v1alpha"})
     session = None
     receive_task = None
 
+    await send_log("浏览器已连接，正在连接 Lyria...")
+
     try:
         async with client.aio.live.music.connect(model=MODEL) as session:
             print("[Lyria] 已连接到 Lyria RealTime")
+            await send_log("Lyria RealTime 已连接")
             await ws.send_json({"type": "status", "message": "connected"})
 
             # 后台任务：持续接收 Lyria 音频并转发给浏览器
@@ -63,6 +72,7 @@ async def handle_websocket(request):
                     pass
                 except Exception as e:
                     print(f"[Lyria 接收错误] {e}")
+                    await send_log(f"接收错误: {e}")
 
             receive_task = asyncio.create_task(forward_audio())
 
@@ -72,6 +82,7 @@ async def handle_websocket(request):
                     data = json.loads(msg.data)
                     cmd = data.get("command")
                     print(f"[指令] {cmd}")
+                    await send_log(f"指令: {cmd}")
 
                     if cmd == "set_prompts":
                         prompts = [
@@ -80,28 +91,34 @@ async def handle_websocket(request):
                         ]
                         await session.set_weighted_prompts(prompts=prompts)
                         await ws.send_json({"type": "status", "message": "prompts_set"})
+                        await send_log(f"Prompts: {prompts[0].text if prompts else 'none'}")
 
                     elif cmd == "set_config":
                         config_dict = data.get("config", {})
                         config = types.LiveMusicGenerationConfig(**config_dict)
                         await session.set_music_generation_config(config=config)
                         await ws.send_json({"type": "status", "message": "config_set"})
+                        await send_log(f"Config: {config_dict}")
 
                     elif cmd == "play":
                         await session.play()
                         await ws.send_json({"type": "status", "message": "playing"})
+                        await send_log("▶ 开始播放")
 
                     elif cmd == "pause":
                         await session.pause()
                         await ws.send_json({"type": "status", "message": "paused"})
+                        await send_log("⏸ 已暂停")
 
                     elif cmd == "stop":
                         await session.stop()
                         await ws.send_json({"type": "status", "message": "stopped"})
+                        await send_log("⏹ 已停止")
 
                     elif cmd == "reset_context":
                         await session.reset_context()
                         await ws.send_json({"type": "status", "message": "context_reset"})
+                        await send_log("🔄 上下文已重置")
 
                 elif msg.type == web.WSMsgType.ERROR:
                     print(f"[WS 错误] {ws.exception()}")
@@ -111,6 +128,7 @@ async def handle_websocket(request):
         print(f"[错误] {e}")
         try:
             await ws.send_json({"type": "error", "message": str(e)})
+            await send_log(f"错误: {e}")
         except:
             pass
     finally:
