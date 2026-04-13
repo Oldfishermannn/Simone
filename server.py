@@ -59,10 +59,19 @@ async def handle_websocket(request):
                                         "type": "audio",
                                         "data": audio_b64
                                     })
+                    # Lyria session ended (stream exhausted) — notify browser to trigger reconnect
+                    print("[Lyria] 会话结束，通知浏览器重连")
+                    await ws.send_json({"type": "status", "message": "lyria_session_ended"})
+                    await ws.close()
                 except asyncio.CancelledError:
                     pass
                 except Exception as e:
                     print(f"[Lyria 接收错误] {e}")
+                    try:
+                        await ws.send_json({"type": "status", "message": "lyria_session_ended"})
+                        await ws.close()
+                    except:
+                        pass
 
             receive_task = asyncio.create_task(forward_audio())
 
