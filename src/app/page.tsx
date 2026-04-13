@@ -129,6 +129,7 @@ export default function JamPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
   const nextPlayTimeRef = useRef(0);
   const chunkCountRef = useRef(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -139,6 +140,7 @@ export default function JamPage() {
   const lastSentConfigRef = useRef<string>(''); // JSON string of last sent config for diffing
   const autoReconnectRef = useRef(false); // true = should auto-reconnect on close
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRotatingRef = useRef(false); // true during session rotation, pre-buffer before playing
 
   // ─── Auto-scroll chat ───
   useEffect(() => {
@@ -175,51 +177,69 @@ export default function JamPage() {
   // ─── Audio playback with buffer queue ───
   const audioQueueRef = useRef<string[]>([]);
   const isPlayingRef = useRef(false);
-  const BUFFER_MIN = 1; // start playback immediately on first chunk
+  const BUFFER_MIN = 1; // normal mode: start immediately
+  const BUFFER_MIN_ROTATION = 3; // after rotation: pre-buffer 3 chunks for smoother start
+
+  const decodeB64ToPCM = useCallback((b64Data: string): AudioBuffer | null => {
+    const ctx = audioCtxRef.current;
+    if (!ctx) return null;
+    const raw = atob(b64Data);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    const int16 = new Int16Array(bytes.buffer);
+    const numSamples = int16.length / CHANNELS;
+    if (numSamples === 0) return null;
+    const buffer = ctx.createBuffer(CHANNELS, numSamples, SAMPLE_RATE);
+    for (let ch = 0; ch < CHANNELS; ch++) {
+      const channelData = buffer.getChannelData(ch);
+      for (let i = 0; i < numSamples; i++) {
+        channelData[i] = int16[i * CHANNELS + ch] / 32768;
+      }
+    }
+    return buffer;
+  }, []);
 
   const drainQueue = useCallback(() => {
     const ctx = audioCtxRef.current;
-    if (!ctx || audioQueueRef.current.length === 0) {
+    const destination = gainNodeRef.current || analyserRef.current;
+    if (!ctx || !destination || audioQueueRef.current.length === 0) {
       isPlayingRef.current = false;
       return;
     }
     isPlayingRef.current = true;
 
+    // If resuming after rotation, fade in over 0.3s
+    if (isRotatingRef.current && gainNodeRef.current) {
+      const gain = gainNodeRef.current;
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(1.0, ctx.currentTime + 0.3);
+      isRotatingRef.current = false;
+    }
+
     while (audioQueueRef.current.length > 0) {
       const b64Data = audioQueueRef.current.shift()!;
-      const raw = atob(b64Data);
-      const bytes = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-      const int16 = new Int16Array(bytes.buffer);
-      const numSamples = int16.length / CHANNELS;
-      if (numSamples === 0) continue;
-      const buffer = ctx.createBuffer(CHANNELS, numSamples, SAMPLE_RATE);
-      for (let ch = 0; ch < CHANNELS; ch++) {
-        const channelData = buffer.getChannelData(ch);
-        for (let i = 0; i < numSamples; i++) {
-          channelData[i] = int16[i * CHANNELS + ch] / 32768;
-        }
-      }
+      const buffer = decodeB64ToPCM(b64Data);
+      if (!buffer) continue;
       const source = ctx.createBufferSource();
       source.buffer = buffer;
-      source.connect(analyserRef.current!);
+      source.connect(destination);
       const now = ctx.currentTime;
-      // If we've fallen behind, jump ahead with a small gap
       if (nextPlayTimeRef.current < now) {
-        nextPlayTimeRef.current = now + 0.02;
+        nextPlayTimeRef.current = now + 0.01;
       }
       source.start(nextPlayTimeRef.current);
       nextPlayTimeRef.current += buffer.duration;
     }
-  }, []);
+  }, [decodeB64ToPCM]);
 
   const playAudioChunk = useCallback((b64Data: string) => {
     const ctx = audioCtxRef.current;
     if (!ctx) return;
     if (ctx.state === 'suspended') ctx.resume();
     audioQueueRef.current.push(b64Data);
-    // Wait until we have enough chunks buffered before starting
-    if (!isPlayingRef.current && audioQueueRef.current.length < BUFFER_MIN) return;
+    // After rotation, wait for more chunks to pre-buffer
+    const minChunks = isRotatingRef.current ? BUFFER_MIN_ROTATION : BUFFER_MIN;
+    if (!isPlayingRef.current && audioQueueRef.current.length < minChunks) return;
     drainQueue();
   }, [drainQueue]);
 
@@ -243,11 +263,16 @@ export default function JamPage() {
         }
         audioQueueRef.current = [];
         isPlayingRef.current = false;
+        isRotatingRef.current = false;
         const ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+        const gain = ctx.createGain();
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 256;
+        // Chain: source -> gain -> analyser -> destination
+        gain.connect(analyser);
         analyser.connect(ctx.destination);
         audioCtxRef.current = ctx;
+        gainNodeRef.current = gain;
         analyserRef.current = analyser;
         nextPlayTimeRef.current = 0;
         chunkCountRef.current = 0;
@@ -263,13 +288,21 @@ export default function JamPage() {
           playAudioChunk(data.data);
         } else if (data.type === 'status') {
           if (data.message === 'reconnecting') {
-            // Server is rotating Lyria session — reset audio buffer for seamless transition
+            // Server is rotating Lyria session — fade out, pre-buffer, then fade in
             setStatus('会话轮转中...');
+            // Fade out current audio over 0.2s
+            if (gainNodeRef.current && audioCtxRef.current) {
+              const gain = gainNodeRef.current;
+              const now = audioCtxRef.current.currentTime;
+              gain.gain.setValueAtTime(gain.gain.value, now);
+              gain.gain.linearRampToValueAtTime(0, now + 0.2);
+            }
+            // Clear queue and prepare for new session's chunks
             audioQueueRef.current = [];
             isPlayingRef.current = false;
+            isRotatingRef.current = true; // will pre-buffer and fade in
             if (audioCtxRef.current) {
-              // Reset play time so new chunks start immediately
-              nextPlayTimeRef.current = audioCtxRef.current.currentTime + 0.05;
+              nextPlayTimeRef.current = audioCtxRef.current.currentTime + 0.3;
             }
           } else if (data.message === 'connected') {
             setStatus('已连接');
