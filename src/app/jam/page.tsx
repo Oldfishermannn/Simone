@@ -346,8 +346,13 @@ export default function JamPage() {
         { role: 'model' as const, parts: [{ text: rawText }] },
       ].slice(-20);
 
+      // If we got music params, auto-connect Lyria if needed, then apply
       if (params) {
-        applyLyriaUpdate(params);
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !lyriaReadyRef.current) {
+          connectWs().then(() => applyLyriaUpdate(params)).catch(() => {});
+        } else {
+          applyLyriaUpdate(params);
+        }
       }
     } catch (err) {
       setMessages(prev => [...prev, {
