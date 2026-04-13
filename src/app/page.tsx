@@ -88,6 +88,7 @@ export default function JamPage() {
   const [currentBpm, setCurrentBpm] = useState(0);
   const [showPrompt, setShowPrompt] = useState(false);
   const [serverLogs, setServerLogs] = useState<string[]>([]);
+  const [countdown, setCountdown] = useState(0); // 3,2,1 countdown
 
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -216,6 +217,10 @@ export default function JamPage() {
         if (data.type === 'audio') {
           chunkCountRef.current++;
           setChunkCount(chunkCountRef.current);
+          // Countdown 3, 2, 1 during buffer phase
+          const c = chunkCountRef.current;
+          if (c <= 3) setCountdown(3 - c + 1); // 3,2,1
+          if (c === 3) setTimeout(() => setCountdown(0), 300);
           playAudioChunk(data.data);
         } else if (data.type === 'status') {
           setStatus(data.message);
@@ -498,8 +503,19 @@ export default function JamPage() {
         </div>
 
         {/* Visualizer */}
-        <canvas ref={canvasRef} width={600} height={80}
-          style={{ width: '100%', height: 80, background: '#0a0a1a', borderRadius: 8 }} />
+        <div className="relative">
+          <canvas ref={canvasRef} width={600} height={80}
+            style={{ width: '100%', height: 80, background: '#0a0a1a', borderRadius: 8 }} />
+          {countdown > 0 && (
+            <div className="absolute inset-0 flex items-center justify-center" style={{
+              background: 'rgba(10,10,26,0.7)', borderRadius: 8,
+              fontSize: 36, fontWeight: 'bold', color: '#00ffff',
+              fontFamily: 'monospace', textShadow: '0 0 20px #00ffff',
+            }}>
+              {countdown}
+            </div>
+          )}
+        </div>
 
         {/* Current params */}
         {currentPrompt && (
