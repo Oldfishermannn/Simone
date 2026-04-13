@@ -92,9 +92,18 @@ async def handle_websocket(request):
 
                     elif cmd == "set_config":
                         config_dict = data.get("config", {})
-                        # Remove fields that need enum types - avoid API rejection
+                        # Remove scale - always causes disconnection
                         config_dict.pop("scale", None)
-                        config_dict.pop("music_generation_mode", None)
+                        # Convert music_generation_mode string to enum
+                        mode_str = config_dict.pop("music_generation_mode", None)
+                        if mode_str:
+                            mode_map = {
+                                "QUALITY": types.MusicGenerationMode.QUALITY,
+                                "DIVERSITY": types.MusicGenerationMode.DIVERSITY,
+                                "VOCALIZATION": types.MusicGenerationMode.VOCALIZATION,
+                            }
+                            if mode_str in mode_map:
+                                config_dict["music_generation_mode"] = mode_map[mode_str]
                         config = types.LiveMusicGenerationConfig(**config_dict)
                         await session.set_music_generation_config(config=config)
                         await ws.send_json({"type": "status", "message": "config_set"})
