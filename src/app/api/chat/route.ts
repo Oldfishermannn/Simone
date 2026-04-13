@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       { role: 'user' as const, parts: [{ text: userMessage }] },
     ];
 
-    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash-lite'];
+    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
     let lastError = '';
 
     for (const model of models) {
