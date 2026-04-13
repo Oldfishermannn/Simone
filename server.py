@@ -71,7 +71,7 @@ async def handle_websocket(request):
                 if msg.type == web.WSMsgType.TEXT:
                     data = json.loads(msg.data)
                     cmd = data.get("command")
-                    print(f"[指令] {cmd}")
+                    print(f"[指令] {cmd} | {json.dumps(data, ensure_ascii=False)[:200]}")
 
                     if cmd == "set_prompts":
                         prompts = [
@@ -83,6 +83,9 @@ async def handle_websocket(request):
 
                     elif cmd == "set_config":
                         config_dict = data.get("config", {})
+                        # Remove fields that need enum types - avoid API rejection
+                        config_dict.pop("scale", None)
+                        config_dict.pop("music_generation_mode", None)
                         config = types.LiveMusicGenerationConfig(**config_dict)
                         await session.set_music_generation_config(config=config)
                         await ws.send_json({"type": "status", "message": "config_set"})
