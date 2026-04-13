@@ -624,9 +624,10 @@ export default function JamPage() {
                 <button key={key}
                   onClick={() => {
                     const newVal = !currentConfig[key];
-                    const newConfig = { ...currentConfig, [key]: newVal };
-                    setCurrentConfig(newConfig);
-                    const { scale: _s, ...safe } = newConfig;
+                    // Must send ALL config fields — partial update resets others to defaults
+                    const fullConfig = { bpm: 120, temperature: 1.1, guidance: 4.0, density: 0.5, brightness: 0.5, ...currentConfig, [key]: newVal };
+                    const { scale: _s, ...safe } = fullConfig;
+                    setCurrentConfig(safe);
                     sendWs({ command: 'set_config', config: safe });
                     lastSentConfigRef.current = JSON.stringify(safe);
                   }}
@@ -649,10 +650,14 @@ export default function JamPage() {
                 return (
                   <button key={mode}
                     onClick={() => {
-                      const newConfig = { ...currentConfig, music_generation_mode: mode };
-                      setCurrentConfig(newConfig);
-                      const { scale: _s, ...safe } = newConfig;
+                      // Must send ALL config fields — partial update resets others to defaults
+                      const fullConfig = { bpm: 120, temperature: 1.1, guidance: 4.0, density: 0.5, brightness: 0.5, ...currentConfig, music_generation_mode: mode };
+                      const { scale: _s, ...safe } = fullConfig;
+                      setCurrentConfig(safe);
                       sendWs({ command: 'set_config', config: safe });
+                      // music_generation_mode change needs reset_context
+                      sendWs({ command: 'reset_context' });
+                      sendWs({ command: 'play' });
                       lastSentConfigRef.current = JSON.stringify(safe);
                     }}
                     className="px-2 py-1 rounded text-xs cursor-pointer transition-colors"
