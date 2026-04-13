@@ -611,6 +611,65 @@ export default function JamPage() {
           </button>
         </div>
 
+        {/* Lyria Controls: mute/mode toggles */}
+        {wsConnected && (
+          <div className="rounded-lg p-3 text-xs space-y-2" style={{ background: '#16213e' }}>
+            <div style={{ color: '#e94560', fontWeight: 600 }}>音轨控制</div>
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { key: 'mute_bass', label: '静音低音' },
+                { key: 'mute_drums', label: '静音鼓' },
+                { key: 'only_bass_and_drums', label: '仅低音+鼓' },
+              ].map(({ key, label }) => (
+                <button key={key}
+                  onClick={() => {
+                    const newVal = !currentConfig[key];
+                    const newConfig = { ...currentConfig, [key]: newVal };
+                    setCurrentConfig(newConfig);
+                    const { scale: _s, ...safe } = newConfig;
+                    sendWs({ command: 'set_config', config: safe });
+                    lastSentConfigRef.current = JSON.stringify(safe);
+                  }}
+                  className="px-2 py-1 rounded text-xs cursor-pointer transition-colors"
+                  style={{
+                    background: currentConfig[key] ? '#e94560' : '#1a1a2e',
+                    color: currentConfig[key] ? '#fff' : '#888',
+                    border: `1px solid ${currentConfig[key] ? '#e94560' : '#333'}`,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div style={{ color: '#e94560', fontWeight: 600, marginTop: 4 }}>生成模式</div>
+            <div className="flex gap-2">
+              {(['QUALITY', 'DIVERSITY', 'VOCALIZATION'] as const).map(mode => {
+                const current = (currentConfig.music_generation_mode as string) || 'QUALITY';
+                const labels: Record<string, string> = { QUALITY: '高质量', DIVERSITY: '多样性', VOCALIZATION: '人声' };
+                return (
+                  <button key={mode}
+                    onClick={() => {
+                      const newConfig = { ...currentConfig, music_generation_mode: mode };
+                      setCurrentConfig(newConfig);
+                      const { scale: _s, ...safe } = newConfig;
+                      sendWs({ command: 'set_config', config: safe });
+                      lastSentConfigRef.current = JSON.stringify(safe);
+                    }}
+                    className="px-2 py-1 rounded text-xs cursor-pointer transition-colors"
+                    style={{
+                      background: current === mode ? '#e94560' : '#1a1a2e',
+                      color: current === mode ? '#fff' : '#888',
+                      border: `1px solid ${current === mode ? '#e94560' : '#333'}`,
+                    }}
+                  >
+                    {labels[mode]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* System Prompt */}
         <div className="mt-auto rounded-lg overflow-hidden" style={{ background: '#16213e' }}>
           <button
