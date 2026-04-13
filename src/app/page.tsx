@@ -87,7 +87,6 @@ export default function JamPage() {
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [currentBpm, setCurrentBpm] = useState(0);
   const [showPrompt, setShowPrompt] = useState(false);
-  const [serverLogs, setServerLogs] = useState<string[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -227,9 +226,6 @@ export default function JamPage() {
           }
         } else if (data.type === 'error') {
           setStatus('错误: ' + data.message);
-        } else if (data.type === 'log') {
-          const ts = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-          setServerLogs(prev => [`[${ts}] ${data.message}`, ...prev].slice(0, 50));
         }
       };
       ws.onerror = () => { setStatus('连接错误'); reject(new Error('WebSocket error')); };
@@ -536,28 +532,8 @@ export default function JamPage() {
           </button>
         </div>
 
-        {/* Server Log */}
-        <div className="mt-auto rounded-lg overflow-hidden" style={{ background: '#0d1117' }}>
-          <div className="px-3 py-1.5 text-xs font-semibold flex justify-between items-center" style={{ color: '#58a6ff', borderBottom: '1px solid #21262d' }}>
-            <span>Server Log</span>
-            {serverLogs.length > 0 && (
-              <button onClick={() => setServerLogs([])} className="cursor-pointer" style={{ color: '#484f58', fontSize: 10 }}>清空</button>
-            )}
-          </div>
-          <div className="px-3 py-1.5 overflow-y-auto" style={{ maxHeight: 120 }}>
-            {serverLogs.length === 0 ? (
-              <div className="text-xs" style={{ color: '#484f58' }}>等待连接...</div>
-            ) : serverLogs.map((log, i) => (
-              <div key={i} className="leading-relaxed" style={{
-                color: log.includes('错误') ? '#f85149' : log.includes('断开') || log.includes('暂停') || log.includes('停止') ? '#d29922' : '#8b949e',
-                fontFamily: 'monospace', fontSize: 10,
-              }}>{log}</div>
-            ))}
-          </div>
-        </div>
-
         {/* System Prompt */}
-        <div className="rounded-lg overflow-hidden" style={{ background: '#16213e' }}>
+        <div className="mt-auto rounded-lg overflow-hidden" style={{ background: '#16213e' }}>
           <button
             onClick={() => setShowPrompt(!showPrompt)}
             className="w-full px-3 py-2 text-left text-xs font-semibold cursor-pointer flex justify-between items-center"
