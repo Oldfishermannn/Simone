@@ -121,8 +121,8 @@ export default function JamPage() {
   const [wsConnected, setWsConnected] = useState(false);
   const [status, setStatus] = useState('未连接');
   const [chunkCount, setChunkCount] = useState(0);
-  const [currentPrompt, setCurrentPrompt] = useState('');
-  const [currentBpm, setCurrentBpm] = useState(0);
+  const [currentPrompts, setCurrentPrompts] = useState<Array<{ text: string; weight: number }>>([]);
+  const [currentConfig, setCurrentConfig] = useState<Record<string, unknown>>({});
   const [showPrompt, setShowPrompt] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -313,8 +313,7 @@ export default function JamPage() {
 
     if (update.prompts && update.prompts.length > 0) {
       sendWs({ command: 'set_prompts', prompts: update.prompts });
-      // Show all prompts in UI, not just the first one
-      setCurrentPrompt(update.prompts.map(p => p.text).join(' + '));
+      setCurrentPrompts(update.prompts);
     }
 
     if (update.config && Object.keys(update.config).length > 0) {
@@ -328,7 +327,7 @@ export default function JamPage() {
           lastSentConfigRef.current = configJson;
         }
       }
-      if (update.config.bpm) setCurrentBpm(update.config.bpm as number);
+      setCurrentConfig(prev => ({ ...prev, ...safeConfig }));
     }
 
     if (update.action) {
@@ -562,11 +561,27 @@ export default function JamPage() {
           style={{ width: '100%', height: 80, background: '#0a0a1a', borderRadius: 8 }} />
 
         {/* Current params */}
-        {currentPrompt && (
-          <div className="rounded-lg p-3 text-xs space-y-1" style={{ background: '#16213e' }}>
-            <div style={{ color: '#e94560' }}>当前风格</div>
-            <div style={{ color: '#ccc' }}>{currentPrompt}</div>
-            {currentBpm > 0 && <div style={{ color: '#888' }}>BPM: {currentBpm}</div>}
+        {currentPrompts.length > 0 && (
+          <div className="rounded-lg p-3 text-xs space-y-2 overflow-y-auto" style={{ background: '#16213e', maxHeight: 280 }}>
+            <div style={{ color: '#e94560', fontWeight: 600 }}>Prompts</div>
+            {currentPrompts.map((p, i) => (
+              <div key={i} className="flex gap-2 items-start">
+                <span className="shrink-0 px-1 rounded" style={{ background: '#e94560', color: '#fff', fontSize: 10 }}>
+                  {p.weight}
+                </span>
+                <span style={{ color: '#ccc', lineHeight: '1.3' }}>{p.text}</span>
+              </div>
+            ))}
+            {Object.keys(currentConfig).length > 0 && (
+              <>
+                <div style={{ color: '#e94560', fontWeight: 600, marginTop: 4 }}>Config</div>
+                <div className="flex gap-x-3 gap-y-1 flex-wrap" style={{ color: '#999' }}>
+                  {Object.entries(currentConfig).map(([k, v]) => (
+                    <span key={k}><span style={{ color: '#666' }}>{k}:</span> {String(v)}</span>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
