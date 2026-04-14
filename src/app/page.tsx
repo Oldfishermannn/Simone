@@ -80,7 +80,7 @@ export default function SimonePage() {
   // 核心思路：像 VoIP/WebRTC 一样，根据 chunk 到达间隔的抖动动态调整缓冲深度
   // Lyria chunk 到达间隔极不稳定（1-8s），固定 BUFFER_MIN 无法应对
   const audioQueueRef = useRef<AudioBuffer[]>([]);
-  const scheduledSourcesRef = useRef<Array<{ src: AudioBufferSourceNode; startAt: number; dur: number }>>([]); // track scheduled sources
+  const scheduledSourcesRef = useRef<AudioBufferSourceNode[]>([]); // track scheduled sources
   const isPlayingRef = useRef(false);
   const chunkArrivalTimesRef = useRef<number[]>([]); // 记录最近 N 个 chunk 到达时间
   const bufferDepthRef = useRef(2); // 初始缓冲深度（chunk 数），会动态调整
@@ -186,13 +186,11 @@ export default function SimonePage() {
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       source.connect(destination);
-      const startAt = nextPlayTimeRef.current;
-      source.start(startAt);
+      source.start(nextPlayTimeRef.current);
       nextPlayTimeRef.current += buffer.duration;
-      const entry = { src: source, startAt, dur: buffer.duration };
-      scheduledSourcesRef.current.push(entry);
+      scheduledSourcesRef.current.push(source);
       source.onended = () => {
-        scheduledSourcesRef.current = scheduledSourcesRef.current.filter(e => e.src !== source);
+        scheduledSourcesRef.current = scheduledSourcesRef.current.filter(s => s !== source);
         scheduleBuffers();
       };
     }
@@ -383,9 +381,9 @@ export default function SimonePage() {
     if (update.prompts && update.prompts.length > 0) {
       sendWs({ command: 'set_prompts', prompts: update.prompts });
       setCurrentPrompts(update.prompts);
-      // Don't cancel playing sources — let old audio continue seamlessly
-      // Server discards stale chunk and regenerates with new style
-      // New style chunk will naturally queue after current audio
+      // Clear unscheduled queue so new style chunks play sooner
+      // Already-scheduled sources keep playing (no stutter)
+      audioQueueRef.current = [];
     }
 
     if (update.config && Object.keys(update.config).length > 0) {
