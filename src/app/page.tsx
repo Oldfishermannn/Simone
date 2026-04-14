@@ -8,6 +8,8 @@ import GenreCards from './components/GenreCards';
 import MiniPlayer from './components/MiniPlayer';
 import TunePanel from './components/TunePanel';
 import ChatBubbles from './components/ChatBubbles';
+import ElementPool from './components/ElementPool';
+import { buildPromptsFromPool, inferGenreFromPool } from './pool-elements';
 
 // ─── Types ───
 interface Message {
@@ -59,7 +61,10 @@ export default function SimonePage() {
   const [genre, setGenre] = useState('default');
   const [activeTag, setActiveTag] = useState('');
   const [showTune, setShowTune] = useState(false);
+  const [showPool, setShowPool] = useState(false);
+  const [poolElements, setPoolElements] = useState<string[]>([]);
   const [tuneValues, setTuneValues] = useState({ temperature: 1.3, guidance_weight: 5.0 });
+  const poolDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -601,6 +606,44 @@ export default function SimonePage() {
     }
   }, [sendWs]);
 
+  // ─── Element Pool: toggle element and send blended prompts ───
+  const handlePoolToggle = useCallback((id: string) => {
+    setPoolElements(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      // Debounce: send after 500ms of no changes
+      if (poolDebounceRef.current) clearTimeout(poolDebounceRef.current);
+      poolDebounceRef.current = setTimeout(() => {
+        if (next.length === 0) return;
+        const prompts = buildPromptsFromPool(next);
+        if (prompts.length === 0) return;
+        // Infer genre for background
+        const poolGenre = inferGenreFromPool(next);
+        if (poolGenre) setGenre(poolGenre);
+        // Send prompts — connect first if needed
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          sendWs({ command: 'set_prompts', prompts });
+          setCurrentPrompts(prompts);
+          audioQueueRef.current = [];
+          // Auto-play if not already playing
+          if (status !== '播放中') {
+            sendWs({ command: 'play' });
+            setStatus('播放中');
+          }
+        } else {
+          connectWs().then(() => {
+            sendWs({ command: 'set_prompts', prompts });
+            setCurrentPrompts(prompts);
+            sendWs({ command: 'play' });
+            setStatus('播放中');
+          }).catch(() => {});
+        }
+        lastUpdateRef.current = { prompts, action: 'update' };
+        autoReconnectRef.current = true;
+      }, 500);
+      return next;
+    });
+  }, [sendWs, connectWs, status]);
+
   // ─── Shuffle: same genre, new variation ───
   const handleShuffle = useCallback(() => {
     if (!lastUpdateRef.current) return;
@@ -808,11 +851,26 @@ export default function SimonePage() {
             analyser={analyserRef.current}
             onTogglePlay={handleTogglePlay}
           />
-          {/* Tune toggle button — only show when player is active */}
+          {/* Toggle buttons — tune & pool */}
           {(wsConnected || genre !== 'default') && (
-            <div className="flex justify-center -mt-1 mb-1">
+            <div className="flex justify-center gap-4 -mt-1 mb-1">
               <button
-                onClick={() => setShowTune(v => !v)}
+                onClick={() => { setShowPool(v => !v); if (!showPool) setShowTune(false); }}
+                className="text-[10px] text-white/30 hover:text-white/60 transition-all duration-300 flex items-center gap-1"
+                style={{ fontFamily: 'var(--font-body)' }}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                     className={`transition-transform duration-300 ${showPool ? 'rotate-180' : ''}`}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+                {showPool ? '收起调味' : '调味池'}
+                {poolElements.length > 0 && (
+                  <span className="text-[9px] text-white/50 ml-0.5">({poolElements.length})</span>
+                )}
+              </button>
+              <button
+                onClick={() => { setShowTune(v => !v); if (!showTune) setShowPool(false); }}
                 className="text-[10px] text-white/30 hover:text-white/60 transition-all duration-300 flex items-center gap-1"
                 style={{ fontFamily: 'var(--font-body)' }}
               >
@@ -825,6 +883,11 @@ export default function SimonePage() {
               </button>
             </div>
           )}
+          <ElementPool
+            activeIds={poolElements}
+            onToggle={handlePoolToggle}
+            visible={showPool}
+          />
           <TunePanel
             temperature={tuneValues.temperature}
             guidance_weight={tuneValues.guidance_weight}
