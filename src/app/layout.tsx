@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import SWRegister from './components/SWRegister';
 
 export const metadata: Metadata = {
   title: 'Simone - AI Music Companion',
@@ -26,7 +27,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body>{children}</body>
+      <body>
+        <SWRegister />
+        {children}
+      </body>
     </html>
   );
 }
