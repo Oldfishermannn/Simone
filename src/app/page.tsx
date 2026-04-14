@@ -377,16 +377,7 @@ export default function SimonePage() {
     if (update.prompts && update.prompts.length > 0) {
       sendWs({ command: 'set_prompts', prompts: update.prompts });
       setCurrentPrompts(update.prompts);
-      // Cancel all scheduled audio so new style plays immediately
-      for (const src of scheduledSourcesRef.current) {
-        try { src.stop(); } catch (_) { /* already stopped */ }
-      }
-      scheduledSourcesRef.current = [];
-      audioQueueRef.current = [];
-      hasStartedRef.current = false;
-      if (audioCtxRef.current) {
-        nextPlayTimeRef.current = audioCtxRef.current.currentTime;
-      }
+      // Magenta RT transitions smoothly — just update style, don't touch audio pipeline
     }
 
     if (update.config && Object.keys(update.config).length > 0) {

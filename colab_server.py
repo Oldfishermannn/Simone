@@ -111,15 +111,7 @@ async def handle(ws):
                 if ps:
                     style = blend_styles(ps)
                     print(f'[style] changed to: {[p["text"][:30] for p in ps]}')
-                    cleared = 0
-                    while not gen_queue.empty():
-                        try:
-                            gen_queue.get_nowait()
-                            cleared += 1
-                        except Exception:
-                            break
-                    if cleared:
-                        print(f'[style] cleared {cleared} old chunks from queue')
+                    # Don't clear queue — let old chunks play out, new style follows naturally
             elif cmd == 'play' and not playing:
                 playing = True
                 gs = None
