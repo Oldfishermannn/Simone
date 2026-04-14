@@ -82,13 +82,20 @@ async def handle(ws):
     style = None
     gs = None
     gt = None
+    style_ver = 0
     loop = asyncio.get_event_loop()
     async def gen_and_send():
-        nonlocal gs, playing, style
+        nonlocal gs, playing, style, style_ver
         while playing:
             try:
                 s = style if style is not None else get_style('chill ambient music with soft piano')
+                ver_before = style_ver
                 msg, gs2 = await loop.run_in_executor(_executor, gen_one_chunk, gs, s)
+                # Style changed during generation — discard old chunk, regenerate immediately
+                if style_ver != ver_before:
+                    print(f'[skip] style changed during gen, discarding old chunk')
+                    gs = None  # reset state for clean new-style start
+                    continue
                 gs = gs2
                 if not playing:
                     break
@@ -110,7 +117,8 @@ async def handle(ws):
                 ps = m.get('prompts', [])
                 if ps:
                     style = blend_styles(ps)
-                    print(f'[style] changed to: {[p["text"][:30] for p in ps]}')
+                    style_ver += 1
+                    print(f'[style] v{style_ver} changed to: {[p["text"][:30] for p in ps]}')
             elif cmd == 'play' and not playing:
                 playing = True
                 gs = None

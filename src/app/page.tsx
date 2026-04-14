@@ -80,7 +80,7 @@ export default function SimonePage() {
   // 核心思路：像 VoIP/WebRTC 一样，根据 chunk 到达间隔的抖动动态调整缓冲深度
   // Lyria chunk 到达间隔极不稳定（1-8s），固定 BUFFER_MIN 无法应对
   const audioQueueRef = useRef<AudioBuffer[]>([]);
-  const scheduledSourcesRef = useRef<AudioBufferSourceNode[]>([]); // track scheduled sources for cancellation
+  const scheduledSourcesRef = useRef<Array<{ src: AudioBufferSourceNode; startAt: number; dur: number }>>([]); // track scheduled sources
   const isPlayingRef = useRef(false);
   const chunkArrivalTimesRef = useRef<number[]>([]); // 记录最近 N 个 chunk 到达时间
   const bufferDepthRef = useRef(2); // 初始缓冲深度（chunk 数），会动态调整
@@ -186,12 +186,13 @@ export default function SimonePage() {
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       source.connect(destination);
-      source.start(nextPlayTimeRef.current);
+      const startAt = nextPlayTimeRef.current;
+      source.start(startAt);
       nextPlayTimeRef.current += buffer.duration;
-      scheduledSourcesRef.current.push(source);
+      const entry = { src: source, startAt, dur: buffer.duration };
+      scheduledSourcesRef.current.push(entry);
       source.onended = () => {
-        scheduledSourcesRef.current = scheduledSourcesRef.current.filter(s => s !== source);
-        // Try to schedule more from queue when a source finishes
+        scheduledSourcesRef.current = scheduledSourcesRef.current.filter(e => e.src !== source);
         scheduleBuffers();
       };
     }
@@ -382,8 +383,27 @@ export default function SimonePage() {
     if (update.prompts && update.prompts.length > 0) {
       sendWs({ command: 'set_prompts', prompts: update.prompts });
       setCurrentPrompts(update.prompts);
-      // Don't stop or clear anything — server processes style change immediately,
-      // old chunks keep playing, new style chunks will seamlessly follow
+      // Cancel future scheduled sources so new style chunks can "cut in line"
+      const ctx = audioCtxRef.current;
+      if (ctx) {
+        const now = ctx.currentTime;
+        const keep: typeof scheduledSourcesRef.current = [];
+        let latestKeepEnd = now;
+        for (const entry of scheduledSourcesRef.current) {
+          const endAt = entry.startAt + entry.dur;
+          if (entry.startAt <= now) {
+            // Currently playing — keep it, note when it ends
+            keep.push(entry);
+            if (endAt > latestKeepEnd) latestKeepEnd = endAt;
+          } else {
+            // Not yet started — cancel it
+            try { entry.src.stop(); } catch { /* already stopped */ }
+          }
+        }
+        scheduledSourcesRef.current = keep;
+        nextPlayTimeRef.current = latestKeepEnd; // new chunks start right after current one
+      }
+      audioQueueRef.current = [];
     }
 
     if (update.config && Object.keys(update.config).length > 0) {
