@@ -1,6 +1,11 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { SIMONE_SYSTEM_PROMPT } from './simone-prompt';
+import AmbientBackground from './components/AmbientBackground';
+import GenreCards from './components/GenreCards';
+import MiniPlayer from './components/MiniPlayer';
+import ChatBubbles from './components/ChatBubbles';
 
 // ─── Types ───
 interface Message {
@@ -15,6 +20,7 @@ interface LyriaUpdate {
   prompts?: Array<{ text: string; weight: number }>;
   config?: Record<string, unknown>;
   action?: 'play' | 'update' | 'pause' | 'stop' | 'reset_context';
+  genre?: string;
 }
 
 // ─── Constants ───
@@ -22,114 +28,14 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8765/ws';
 const SAMPLE_RATE = 48000;
 const CHANNELS = 2;
 
-const SYSTEM_PROMPT = `你是 DJ Cyber，一个酷酷的实时音乐 AI 协作者。你通过 Google Lyria RealTime API 实时生成器乐音乐。
-
-## 回复格式（严格遵循）
-
-先用中文写对话（1-3句，简洁有力），然后换行输出 JSON：
-
-\`\`\`json
-{
-  "prompts": [
-    {"text": "主风格描述", "weight": 1.0},
-    {"text": "叠加元素描述", "weight": 0.5}
-  ],
-  "config": {
-    "bpm": 120,
-    "temperature": 1.1,
-    "guidance": 4.0,
-    "density": 0.5,
-    "brightness": 0.5
-  },
-  "action": "play"
-}
-\`\`\`
-
-## Prompt 写法（关键！决定音乐质量）
-
-prompts 是一个数组，支持多个 WeightedPrompt 混合叠加：
-- text: 英文描述，**每个 prompt 都必须包含具体乐器名称**
-- 结构：【流派 + 乐器（至少2个）+ 情绪/质感】
-- weight: 控制该 prompt 的影响力（0.3-2.0）
-
-好的 prompt 示例：
-- "Chill lo-fi hip hop with warm Rhodes piano, vinyl crackle, and soft boom-bap drums"
-- "Deep house with pulsing 808 bass, shimmering hi-hats, and ethereal synth pads"
-- "Cinematic orchestral score with soaring strings, French horn, and timpani rolls"
-- "Acid jazz fusion with walking upright bass, brushed drums, and muted trumpet"
-
-差的 prompt（禁止）：
-- "happy music"（太笼统，没有乐器）
-- "Crunchy distortion with tight groove"（没有乐器名称！）
-- "rock"（缺乏细节）
-
-乐器参考：Rhodes Piano, Acoustic Guitar, Electric Guitar, 808 Bass, Upright Bass, Moog Synths, Analog Pads, Sitar, Kalimba, Cello, Violin, Strings, Slide Guitar, TR-909 Drums, Brushed Drums, Boom-Bap Drums, Hi-Hats, Harmonica, Steel Drum, Vibraphone, Koto, Djembe, Trumpet, Tenor Saxophone, Flute, French Horn, Harpsichord, Organ, Marimba
-流派参考：Lo-Fi Hip Hop, Deep House, Bossa Nova, Drum & Bass, Afrobeat, Shoegaze, Electro Swing, Trip Hop, Psytrance, Indie Folk, Reggae, Synthpop, Celtic Folk, G-funk, Minimal Techno, Nu Jazz, Future Bass, Ambient, Post-Rock
-质感参考：Dreamy, Ethereal, Warm, Saturated, Glitchy, Tight Groove, Swirling Phasers, Ominous, Spacious Reverb, Tape Saturation, Vinyl Crackle, Lo-Fi Texture
-
-## 顺滑过渡（最重要的 DJ 技巧！）
-
-切换风格时，**不要一次全换所有 prompt**，要像 DJ 混音一样渐进过渡：
-
-1. **保留桥接元素**：切换时保留 1 个上一轮的乐器/节奏元素作为过渡桥梁
-   - 例：Lo-Fi → Jazz，保留 "soft drums" 作为桥，加入 jazz 乐器
-   - 例：Jazz → Electronic，保留 "Rhodes piano" 作为桥，加入 synth
-
-2. **用 weight 做交叉淡入**：
-   - 旧风格 prompt weight 降到 0.3-0.5（不要直接删除）
-   - 新风格 prompt weight 设 0.8-1.0
-   - 用户可能连续要求调整，你可以逐步把旧 prompt 权重降到 0 再移除
-
-3. **guidance 控制过渡硬度**：
-   - 正常播放：guidance 3.5-4.5（稳定）
-   - 切换风格时：guidance 降到 2.5-3.0（让过渡更柔和自然）
-   - 稳定后再逐步回到 3.5-4.0
-
-4. **BPM 变化策略**：
-   - BPM 变化 ≤15：用 action="update"，Lyria 会自然适应
-   - BPM 变化 >15 或跨流派大变：用 action="reset_context"
-   - 尽量保持 BPM 稳定，除非用户明确要求
-
-## Config 参数（只用以下白名单字段）
-
-- bpm: 60-200，节奏速度
-- temperature: 0.0-3.0，创意随机度（默认 1.1）
-- guidance: 0.0-6.0，prompt 遵循度（默认 4.0，过渡时降低）
-- density: 0.0-1.0，音符密度
-- brightness: 0.0-1.0，音调亮度
-- top_k: 1-1000，采样多样性（默认 40）
-- mute_bass / mute_drums / only_bass_and_drums: true/false
-- music_generation_mode: "QUALITY"/"DIVERSITY"/"VOCALIZATION"，改变后需 reset_context
-
-⚠️ 禁止输出 scale 和 seed 字段，会导致连接断开！
-
-## Action 值
-
-- "play": 首次播放
-- "update": 调整参数（**优先用这个**，不中断播放，过渡最顺滑）
-- "pause" / "stop": 暂停/停止
-- "reset_context": 仅在 BPM 大幅变化(>15)或切换 music_generation_mode 时使用
-
-## 规则
-
-1. 中文聊天，prompts.text 英文
-2. 首次 action="play"，**之后尽量都用 action="update"**
-3. 每个 prompt.text 必须包含至少 2 个具体乐器名称
-4. config 每次输出完整字段（API 会重置未指定的字段）
-5. 渐进调整：一次只改 1-2 个维度，不要所有参数同时大改
-6. 切换风格时，保留一个桥接元素 + 降低 guidance
-7. 你只能生成器乐，不能生成带歌词的音乐
-8. 保持个性：你是一个酷酷的 DJ，擅长流畅的混音过渡`;
-
 let msgId = 0;
 function uid() { return `msg-${++msgId}-${Date.now()}`; }
 
-export default function JamPage() {
+export default function SimonePage() {
   // ─── Chat State ───
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }>>([]);
 
   // ─── WebSocket / Audio State ───
@@ -138,7 +44,9 @@ export default function JamPage() {
   const [chunkCount, setChunkCount] = useState(0);
   const [currentPrompts, setCurrentPrompts] = useState<Array<{ text: string; weight: number }>>([]);
   const [currentConfig, setCurrentConfig] = useState<Record<string, unknown>>({});
-  const [showPrompt, setShowPrompt] = useState(false);
+
+  // ─── Genre State ───
+  const [genre, setGenre] = useState('default');
 
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -146,7 +54,6 @@ export default function JamPage() {
   const gainNodeRef = useRef<GainNode | null>(null);
   const nextPlayTimeRef = useRef(0);
   const chunkCountRef = useRef(0);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef(0);
   const lyriaReadyRef = useRef(false);
   const lyriaReadyResolveRef = useRef<(() => void) | null>(null);
@@ -155,38 +62,6 @@ export default function JamPage() {
   const autoReconnectRef = useRef(false); // true = should auto-reconnect on close
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRotatingRef = useRef(false); // true during session rotation, pre-buffer before playing
-
-  // ─── Auto-scroll chat ───
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // ─── Visualizer ───
-  const drawVisualizer = useCallback(() => {
-    const canvas = canvasRef.current;
-    const analyser = analyserRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const w = canvas.width, h = canvas.height;
-    ctx.fillStyle = '#0a0a1a';
-    ctx.fillRect(0, 0, w, h);
-    if (analyser) {
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      analyser.getByteFrequencyData(data);
-      const barW = (w / data.length) * 2.5;
-      let x = 0;
-      for (let i = 0; i < data.length; i++) {
-        const barH = (data[i] / 255) * h;
-        const hue = (i / data.length) * 360;
-        ctx.fillStyle = `hsl(${hue}, 80%, 55%)`;
-        ctx.fillRect(x, h - barH, barW - 1, barH);
-        x += barW;
-        if (x > w) break;
-      }
-    }
-    animFrameRef.current = requestAnimationFrame(drawVisualizer);
-  }, []);
 
   // ─── Adaptive Jitter Buffer Audio Playback ───
   // 核心思路：像 VoIP/WebRTC 一样，根据 chunk 到达间隔的抖动动态调整缓冲深度
@@ -343,7 +218,6 @@ export default function JamPage() {
         chunkCountRef.current = 0;
         setChunkCount(0);
         if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-        animFrameRef.current = requestAnimationFrame(drawVisualizer);
       };
       ws.onmessage = (evt) => {
         const data = JSON.parse(evt.data);
@@ -407,7 +281,7 @@ export default function JamPage() {
         }
       }, 15000);
     });
-  }, [drawVisualizer, playAudioChunk]);
+  }, [playAudioChunk]);
 
   // ─── Send Lyria commands via WebSocket ───
   const sendWs = useCallback((data: Record<string, unknown>) => {
@@ -419,6 +293,11 @@ export default function JamPage() {
   // ─── Apply Lyria params from chat ───
   const applyLyriaUpdate = useCallback((update: LyriaUpdate) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+
+    // Extract genre if present
+    if ((update as Record<string, unknown>).genre) {
+      setGenre((update as Record<string, unknown>).genre as string);
+    }
 
     // Save for auto-reconnect
     lastUpdateRef.current = { ...lastUpdateRef.current, ...update };
@@ -508,7 +387,7 @@ export default function JamPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemPrompt: SYSTEM_PROMPT,
+          systemPrompt: SIMONE_SYSTEM_PROMPT,
           history,
           userMessage: text,
         }),
@@ -536,6 +415,9 @@ export default function JamPage() {
 
       // If we got music params, auto-connect Lyria if needed, then apply
       if (params) {
+        if ((params as Record<string, unknown>).genre) {
+          setGenre((params as Record<string, unknown>).genre as string);
+        }
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !lyriaReadyRef.current) {
           connectWs().then(() => applyLyriaUpdate(params)).catch(() => {});
         } else {
@@ -553,73 +435,72 @@ export default function JamPage() {
     }
   };
 
-  // ─── Screen capture & analyze ───
-  const [screenPreview, setScreenPreview] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // ─── Genre card selection ───
+  const handleGenreSelect = useCallback((genreId: string, prompt: string) => {
+    setGenre(genreId);
+    setInput('');
+    setIsLoading(true);
+    const userMsg: Message = { id: uid(), role: 'user', text: prompt, time: Date.now() };
+    setMessages(prev => [...prev, userMsg]);
 
-  const handleScreenCapture = async () => {
-    if (isAnalyzing) return;
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-      const track = stream.getVideoTracks()[0];
-      const canvas = document.createElement('canvas');
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      await video.play();
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(video, 0, 0);
-      track.stop();
-
-      const dataUrl = canvas.toDataURL('image/png');
-      const base64 = dataUrl.split(',')[1];
-      setScreenPreview(dataUrl);
-      setIsAnalyzing(true);
-
-      // Add user message with screenshot
-      setMessages(prev => [...prev, {
-        id: uid(), role: 'user', text: '[截屏分析] 根据我的桌面推荐音乐', time: Date.now(),
-      }]);
-
-      const res = await fetch('/api/analyze-screen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64 }),
-      });
-
-      if (!res.ok) throw new Error(`API error ${res.status}`);
-      const data = await res.json();
-      const rawText: string = data.text ?? '';
-      const { text: aiText, params } = parseResponse(rawText);
-
-      setMessages(prev => [...prev, {
-        id: uid(), role: 'ai', text: aiText, params, time: Date.now(),
-      }]);
-
-      if (params) applyLyriaUpdate(params);
-    } catch (err) {
-      if ((err as Error).name !== 'NotAllowedError') {
+    const history = historyRef.current;
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemPrompt: SIMONE_SYSTEM_PROMPT,
+        history,
+        userMessage: prompt,
+      }),
+    })
+      .then(res => {
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        const rawText: string = data.text ?? '';
+        const { text: aiText, params } = parseResponse(rawText);
+        const aiMsg: Message = { id: uid(), role: 'ai', text: aiText, params, time: Date.now() };
+        setMessages(prev => [...prev, aiMsg]);
+        historyRef.current = [
+          ...history,
+          { role: 'user' as const, parts: [{ text: prompt }] },
+          { role: 'model' as const, parts: [{ text: rawText }] },
+        ].slice(-20);
+        if (params) {
+          if ((params as Record<string, unknown>).genre) {
+            setGenre((params as Record<string, unknown>).genre as string);
+          }
+          if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !lyriaReadyRef.current) {
+            connectWs().then(() => applyLyriaUpdate(params)).catch(() => {});
+          } else {
+            applyLyriaUpdate(params);
+          }
+        }
+      })
+      .catch(err => {
         setMessages(prev => [...prev, {
           id: uid(), role: 'system',
-          text: '截屏分析出错: ' + (err instanceof Error ? err.message : String(err)),
+          text: '连接出错: ' + (err instanceof Error ? err.message : String(err)),
           time: Date.now(),
         }]);
-      }
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
+      })
+      .finally(() => setIsLoading(false));
+  }, [connectWs, applyLyriaUpdate]);
 
-  const quickActions = [
-    '来段 Lofi 放松一下',
-    '给我来个摇滚',
-    '换个爵士风格',
-    '加快节奏！',
-    '慢下来，柔和一点',
-    '暂停',
-  ];
+  // ─── Toggle play/pause ───
+  const handleTogglePlay = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      const isPaused = status === '已暂停' || status === '已停止';
+      if (isPaused) {
+        sendWs({ command: 'play' });
+        setStatus('播放中');
+      } else {
+        sendWs({ command: 'pause' });
+        setStatus('已暂停');
+      }
+    }
+  }, [sendWs, status]);
 
   // ─── Auto-reconnect when Lyria session times out ───
   useEffect(() => {
@@ -649,7 +530,7 @@ export default function JamPage() {
     // MediaSession: lock screen controls
     if ('mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: 'DJ Cyber', artist: 'Lyria RealTime', album: 'AI Music',
+        title: 'Simone', artist: 'Lyria RealTime', album: 'AI Music',
       });
       navigator.mediaSession.setActionHandler('play', () => {
         audioCtxRef.current?.resume();
@@ -733,270 +614,61 @@ export default function JamPage() {
     };
   }, [sendWs, connectWs, applyLyriaUpdate]);
 
-  const [showPanel, setShowPanel] = useState(false);
+  // suppress unused var warnings
+  void chunkCount;
+  void currentPrompts;
+  void currentConfig;
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] overflow-hidden" style={{ background: '#0a0a14', color: '#e0e0e0' }}>
-      {/* ─── Mobile Top Bar ─── */}
-      <div className="md:hidden shrink-0 flex items-center gap-2 px-3 py-2 border-b border-[#222]">
-        <h1 className="text-base font-bold flex-1" style={{ color: '#00ffff', fontFamily: 'monospace' }}>
-          DJ Cyber
-        </h1>
-        <div className="text-xs px-2 py-1 rounded" style={{
-          background: '#16213e',
-          borderLeft: `3px solid ${wsConnected ? (chunkCount > 0 ? '#e94560' : '#4caf50') : '#f44336'}`,
-        }}>
-          {status}
-        </div>
-        <button
-          onClick={() => setShowPanel(!showPanel)}
-          className="px-2 py-1 rounded text-xs cursor-pointer"
-          style={{ background: showPanel ? '#e94560' : '#16213e', color: '#fff' }}
-        >
-          {showPanel ? '聊天' : '控制'}
-        </button>
-      </div>
-
-      {/* ─── Left Panel (desktop: always visible, mobile: toggle) ─── */}
-      <div className={`${showPanel ? 'flex' : 'hidden'} md:flex w-full md:w-[380px] shrink-0 flex-col border-r border-[#222] p-3 md:p-4 gap-3 md:gap-4 overflow-y-auto`}>
-        <h1 className="hidden md:block text-xl font-bold" style={{ color: '#00ffff', fontFamily: 'monospace' }}>
-          DJ Cyber
-        </h1>
-
-        {/* Status (desktop only, mobile has top bar) */}
-        <div className="hidden md:block px-3 py-2 rounded-lg text-sm" style={{
-          background: '#16213e',
-          borderLeft: `4px solid ${wsConnected ? (chunkCount > 0 ? '#e94560' : '#4caf50') : '#f44336'}`,
-        }}>
-          {status} {chunkCount > 0 && `| ${chunkCount} chunks`}
-        </div>
-
-        {/* Visualizer */}
-        <canvas ref={canvasRef} width={600} height={60}
-          style={{ width: '100%', height: 60, background: '#0a0a1a', borderRadius: 8 }} />
-
-        {/* Controls */}
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={() => {
-              if (wsConnected) {
-                autoReconnectRef.current = false;
-                wsRef.current?.close();
-              } else {
-                connectWs();
-              }
-            }}
-            className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer flex-1 min-w-[100px]"
-            style={{ background: wsConnected ? '#f44336' : '#2196f3', color: '#fff' }}>
-            {wsConnected ? '断开' : '连接 Lyria'}
-          </button>
-          <button onClick={() => sendWs({ command: 'pause' })} disabled={!wsConnected}
-            className="px-3 py-2 rounded-lg text-sm cursor-pointer disabled:opacity-40"
-            style={{ background: '#ff9800', color: '#fff' }}>
-            暂停
-          </button>
-          <button onClick={() => { autoReconnectRef.current = false; sendWs({ command: 'stop' }); }} disabled={!wsConnected}
-            className="px-3 py-2 rounded-lg text-sm cursor-pointer disabled:opacity-40"
-            style={{ background: '#666', color: '#fff' }}>
-            停止
-          </button>
-        </div>
-
-        {/* Lyria Controls: mute/mode toggles */}
-        {wsConnected && (
-          <div className="rounded-lg p-3 text-xs space-y-2" style={{ background: '#16213e' }}>
-            <div style={{ color: '#e94560', fontWeight: 600 }}>音轨控制</div>
-            <div className="flex gap-2 flex-wrap">
-              {[
-                { key: 'mute_bass', label: '静音低音' },
-                { key: 'mute_drums', label: '静音鼓' },
-                { key: 'only_bass_and_drums', label: '仅低音+鼓' },
-              ].map(({ key, label }) => (
-                <button key={key}
-                  onClick={() => {
-                    const newVal = !currentConfig[key];
-                    const fullConfig = { bpm: 120, temperature: 1.1, guidance: 4.0, density: 0.5, brightness: 0.5, ...currentConfig, [key]: newVal };
-                    const { scale: _s, ...safe } = fullConfig as Record<string, unknown>;
-                    setCurrentConfig(safe);
-                    sendWs({ command: 'set_config', config: safe });
-                    lastSentConfigRef.current = JSON.stringify(safe);
-                  }}
-                  className="px-2 py-1 rounded text-xs cursor-pointer transition-colors"
-                  style={{
-                    background: currentConfig[key] ? '#e94560' : '#1a1a2e',
-                    color: currentConfig[key] ? '#fff' : '#888',
-                    border: `1px solid ${currentConfig[key] ? '#e94560' : '#333'}`,
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+    <>
+      <AmbientBackground genre={genre} />
+      <div className="flex flex-col h-[100dvh]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        {/* Chat area or initial greeting */}
+        {messages.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-8 px-4">
+            <div className="text-center">
+              <h1 className="text-2xl font-light text-white mb-2">Simone</h1>
+              <p className="text-white/60 text-sm">嗨，想听点什么？</p>
             </div>
-            <div style={{ color: '#e94560', fontWeight: 600, marginTop: 4 }}>生成模式</div>
-            <div className="flex gap-2">
-              {(['QUALITY', 'DIVERSITY', 'VOCALIZATION'] as const).map(mode => {
-                const current = (currentConfig.music_generation_mode as string) || 'QUALITY';
-                const labels: Record<string, string> = { QUALITY: '高质量', DIVERSITY: '多样性', VOCALIZATION: '人声' };
-                return (
-                  <button key={mode}
-                    onClick={() => {
-                      const fullConfig = { bpm: 120, temperature: 1.1, guidance: 4.0, density: 0.5, brightness: 0.5, ...currentConfig, music_generation_mode: mode };
-                      const { scale: _s, ...safe } = fullConfig as Record<string, unknown>;
-                      setCurrentConfig(safe);
-                      sendWs({ command: 'set_config', config: safe });
-                      sendWs({ command: 'reset_context' });
-                      sendWs({ command: 'play' });
-                      lastSentConfigRef.current = JSON.stringify(safe);
-                    }}
-                    className="px-2 py-1 rounded text-xs cursor-pointer transition-colors flex-1 text-center"
-                    style={{
-                      background: current === mode ? '#e94560' : '#1a1a2e',
-                      color: current === mode ? '#fff' : '#888',
-                      border: `1px solid ${current === mode ? '#e94560' : '#333'}`,
-                    }}
-                  >
-                    {labels[mode]}
-                  </button>
-                );
-              })}
-            </div>
+            <GenreCards onSelect={handleGenreSelect} />
           </div>
+        ) : (
+          <ChatBubbles messages={messages} isLoading={isLoading} />
         )}
 
-        {/* Current params */}
-        {currentPrompts.length > 0 && (
-          <div className="rounded-lg p-3 text-xs space-y-2 overflow-y-auto" style={{ background: '#16213e', maxHeight: 200 }}>
-            <div style={{ color: '#e94560', fontWeight: 600 }}>Prompts</div>
-            {currentPrompts.map((p, i) => (
-              <div key={i} className="flex gap-2 items-start">
-                <span className="shrink-0 px-1 rounded" style={{ background: '#e94560', color: '#fff', fontSize: 10 }}>
-                  {p.weight}
-                </span>
-                <span style={{ color: '#ccc', lineHeight: '1.3' }}>{p.text}</span>
-              </div>
-            ))}
-            {Object.keys(currentConfig).length > 0 && (
-              <>
-                <div style={{ color: '#e94560', fontWeight: 600, marginTop: 4 }}>Config</div>
-                <div className="flex gap-x-3 gap-y-1 flex-wrap" style={{ color: '#999' }}>
-                  {Object.entries(currentConfig).map(([k, v]) => (
-                    <span key={k}><span style={{ color: '#666' }}>{k}:</span> {String(v)}</span>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        {/* Mini player */}
+        <MiniPlayer
+          isPlaying={wsConnected && status === '播放中'}
+          genre={genre}
+          analyser={analyserRef.current}
+          onTogglePlay={handleTogglePlay}
+        />
 
-        {/* System Prompt (desktop only) */}
-        <div className="hidden md:block mt-auto rounded-lg overflow-hidden" style={{ background: '#16213e' }}>
-          <button
-            onClick={() => setShowPrompt(!showPrompt)}
-            className="w-full px-3 py-2 text-left text-xs font-semibold cursor-pointer flex justify-between items-center"
-            style={{ color: '#e94560' }}
-          >
-            <span>System Prompt</span>
-            <span style={{ color: '#666' }}>{showPrompt ? '▼' : '▶'}</span>
-          </button>
-          {showPrompt && (
-            <pre className="px-3 pb-3 text-xs leading-relaxed overflow-y-auto whitespace-pre-wrap" style={{
-              color: '#aaa', maxHeight: 400, fontFamily: 'monospace', fontSize: 11,
-            }}>
-              {SYSTEM_PROMPT}
-            </pre>
-          )}
-        </div>
-      </div>
-
-      {/* ─── Chat Area ─── */}
-      <div className={`${showPanel ? 'hidden' : 'flex'} md:flex flex-1 flex-col min-w-0`}>
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 md:px-4 py-3 space-y-3 min-h-0">
-          {messages.length === 0 && (
-            <div className="text-center py-12 md:py-20" style={{ color: '#444' }}>
-              <div className="text-lg mb-2">DJ Cyber 准备就绪</div>
-              <div className="text-sm">告诉我你想听什么音乐</div>
-            </div>
-          )}
-
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className="max-w-[85%] md:max-w-[80%]">
-                {msg.role === 'user' ? (
-                  <div className="rounded-lg px-3 py-2 text-sm" style={{ background: '#162447', color: '#88d8f8' }}>
-                    {msg.text}
-                  </div>
-                ) : msg.role === 'system' ? (
-                  <div className="rounded-lg px-3 py-2 text-xs" style={{ background: '#2a0a0a', color: '#ff6b6b' }}>
-                    {msg.text}
-                  </div>
-                ) : (
-                  <div>
-                    <div className="rounded-lg px-3 py-2 text-sm" style={{ background: '#1a1a2e', borderLeft: '3px solid #e94560' }}>
-                      <span className="font-bold text-xs mr-1" style={{ color: '#e94560' }}>DJ Cyber</span>
-                      <span style={{ color: '#ccc' }}>{msg.text}</span>
-                    </div>
-                    {msg.params && (
-                      <div className="mt-1 rounded px-2 py-1 text-xs flex gap-2 md:gap-3 flex-wrap" style={{ background: '#111', color: '#666' }}>
-                        {msg.params.action && <span style={{ color: '#4caf50' }}>{msg.params.action}</span>}
-                        {msg.params.config?.bpm != null && <span>{'BPM:' + String(msg.params.config.bpm)}</span>}
-                        {msg.params.prompts?.[0] && <span className="truncate max-w-[160px] md:max-w-[200px]" title={msg.params.prompts[0].text}>{String(msg.params.prompts[0].text)}</span>}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="rounded-lg px-3 py-2 text-sm animate-pulse" style={{ background: '#1a1a2e', color: '#888' }}>
-                DJ Cyber 调音中...
-              </div>
-            </div>
-          )}
-
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Screenshot preview */}
-        {screenPreview && (
-          <div className="shrink-0 px-3 md:px-4 py-2 border-t border-[#1a1a2e]">
-            <div className="relative inline-block">
-              <img src={screenPreview} alt="截屏" className="rounded-lg max-h-[80px] md:max-h-[120px] opacity-70" />
-              <button onClick={() => setScreenPreview(null)}
-                className="absolute top-1 right-1 w-5 h-5 rounded-full text-xs cursor-pointer flex items-center justify-center"
-                style={{ background: '#333', color: '#aaa' }}>x</button>
-            </div>
-          </div>
-        )}
-
-        {/* Quick actions */}
-        <div className="shrink-0 px-3 md:px-4 py-2 flex gap-1.5 md:gap-2 flex-wrap border-t border-[#1a1a2e]">
-          {quickActions.map((q) => (
-            <button key={q} onClick={() => { setInput(q); }}
-              className="px-2.5 md:px-3 py-1 rounded-full text-xs cursor-pointer transition-colors hover:border-[#e94560]"
-              style={{ background: '#111', border: '1px solid #333', color: '#888' }}>
-              {q}
+        {/* Input bar */}
+        <div className="px-4 pb-4 pt-2">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+              placeholder="跟 Simone 说点什么..."
+              className="flex-1 px-4 py-3 rounded-2xl bg-white/10 backdrop-blur-md
+                         text-white placeholder-white/40 text-sm outline-none
+                         focus:ring-1 focus:ring-white/30"
+              disabled={isLoading}
+            />
+            <button
+              onClick={handleSend}
+              disabled={isLoading || !input.trim()}
+              className="px-5 py-3 rounded-2xl bg-[var(--simone-accent)] text-white text-sm
+                         font-medium disabled:opacity-40 active:scale-95 transition-transform"
+            >
+              发送
             </button>
-          ))}
+          </div>
         </div>
-
-        {/* Input */}
-        <form onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-          className="shrink-0 flex gap-2 px-3 md:px-4 py-2 md:py-3 border-t border-[#222]"
-          style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
-          <input type="text" value={input} onChange={(e) => setInput(e.target.value)}
-            placeholder="告诉 DJ Cyber 你想听什么..."
-            disabled={isLoading}
-            className="flex-1 bg-[#111] text-[#eee] text-sm rounded-lg px-3 py-2.5 border border-[#333] outline-none focus:border-[#e94560] placeholder-[#555] disabled:opacity-50" />
-          <button type="submit" disabled={isLoading || !input.trim()}
-            className="px-4 md:px-5 py-2.5 text-sm font-semibold rounded-lg cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            style={{ background: '#e94560', color: '#fff' }}>
-            发送
-          </button>
-        </form>
       </div>
-    </div>
+    </>
   );
 }
