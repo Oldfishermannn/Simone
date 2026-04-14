@@ -178,7 +178,10 @@ export default function SimonePage() {
       nextPlayTimeRef.current = now;
     }
 
+    const MAX_AHEAD = 3; // max seconds of audio scheduled ahead
     while (audioQueueRef.current.length > 0) {
+      // Don't schedule too far ahead — keeps style changes responsive
+      if (nextPlayTimeRef.current - now > MAX_AHEAD) break;
       const buffer = audioQueueRef.current.shift()!;
       const source = ctx.createBufferSource();
       source.buffer = buffer;
@@ -188,6 +191,8 @@ export default function SimonePage() {
       scheduledSourcesRef.current.push(source);
       source.onended = () => {
         scheduledSourcesRef.current = scheduledSourcesRef.current.filter(s => s !== source);
+        // Try to schedule more from queue when a source finishes
+        scheduleBuffers();
       };
     }
   }, []);

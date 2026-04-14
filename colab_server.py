@@ -60,7 +60,7 @@ async def handle(ws):
     style = None
     gs = None
     gt = None
-    gen_queue = asyncio.Queue(maxsize=2)
+    gen_queue = asyncio.Queue(maxsize=1)
     async def generator():
         nonlocal gs, playing, style
         while playing:
