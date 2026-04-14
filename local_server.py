@@ -1,33 +1,18 @@
 """
-Simone — Lyria RealTime WS Bridge
-Browser <-> WebSocket (Cloudflare Tunnel) <-> This server <-> Google Lyria RealTime API
-
-No GPU needed. Just a GEMINI_API_KEY.
+Simone — Lyria RealTime Local Server
+Run locally on Mac, no Colab needed.
+Usage: GEMINI_API_KEY=xxx python -u local_server.py
 """
-import os, subprocess, asyncio, json, base64, re, time
+import os, asyncio, json, base64
 import nest_asyncio
 nest_asyncio.apply()
 import websockets
 from google import genai
 from google.genai import types
 
-# API key: env var or notebook global
 API_KEY = os.environ.get('GEMINI_API_KEY', '')
 if not API_KEY:
-    API_KEY = globals().get('GEMINI_API_KEY', '') or ''
-if not API_KEY:
-    raise ValueError('GEMINI_API_KEY not set. Set as env var or in notebook.')
-
-# Kill old processes
-subprocess.run(['fuser', '-k', '8765/tcp'], capture_output=True)
-subprocess.run(['pkill', '-f', 'cloudflared'], capture_output=True)
-time.sleep(0.5)
-
-# Install cloudflared
-subprocess.run(['wget', '-q',
-    'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64',
-    '-O', '/usr/local/bin/cloudflared'], check=True)
-subprocess.run(['chmod', '+x', '/usr/local/bin/cloudflared'], check=True)
+    raise ValueError('Set GEMINI_API_KEY env var')
 
 client = genai.Client(api_key=API_KEY, http_options={'api_version': 'v1alpha'})
 MODEL = 'models/lyria-realtime-exp'
@@ -40,9 +25,10 @@ async def handle(ws):
             print('[lyria] Connected to Lyria RealTime')
             await ws.send(json.dumps({'type': 'status', 'message': 'connected'}))
 
-            # Background task: accumulate small Lyria chunks into ~0.5s buffers
             async def forward_audio():
-                BUFFER_TARGET = 96000  # 48kHz * 2ch * 2bytes * 0.5s
+                # Accumulate small Lyria chunks into ~0.5s buffers before sending
+                # 48kHz * 2ch * 2bytes * 0.5s = 96000 bytes
+                BUFFER_TARGET = 96000
                 audio_buffer = bytearray()
                 chunk_count = 0
                 try:
@@ -55,13 +41,16 @@ async def handle(ws):
                         for chunk in sc.audio_chunks:
                             audio_buffer.extend(chunk.data)
                             chunk_count += 1
+                            # Send when we have enough (or at least every chunk if large)
                             if len(audio_buffer) >= BUFFER_TARGET:
+                                # Ensure even byte length for Int16
                                 send_len = len(audio_buffer) - (len(audio_buffer) % 2)
                                 if send_len > 0:
                                     b64 = base64.b64encode(bytes(audio_buffer[:send_len])).decode('ascii')
                                     await ws.send(json.dumps({'type': 'audio', 'data': b64}))
                                     print(f'[audio] {send_len} bytes ({chunk_count} chunks)')
                                     chunk_count = 0
+                                    # Keep remainder
                                     audio_buffer = bytearray(audio_buffer[send_len:])
                 except asyncio.CancelledError:
                     pass
@@ -70,14 +59,8 @@ async def handle(ws):
 
             recv_task = asyncio.create_task(forward_audio())
 
-            # Track current config so we always send full config (Lyria resets unset fields)
-            current_config = {
-                'temperature': 1.1,
-                'guidance': 4.0,
-                'top_k': 40,
-            }
+            current_config = {'temperature': 1.1, 'guidance': 4.0, 'top_k': 40}
 
-            # Main loop: browser commands → Lyria
             async for raw in ws:
                 m = json.loads(raw)
                 cmd = m.get('command')
@@ -110,7 +93,6 @@ async def handle(ws):
                     for key in ['temperature', 'guidance', 'density', 'brightness', 'bpm', 'top_k']:
                         if key in cfg:
                             current_config[key] = cfg[key]
-                    # Build config — must send all fields (Lyria resets unset ones)
                     config_kwargs = {}
                     for key, val in current_config.items():
                         if key in ('temperature', 'guidance', 'density', 'brightness'):
@@ -138,34 +120,12 @@ async def handle(ws):
             recv_task.cancel()
         print('[ws] Browser disconnected')
 
-# --- Cloudflare Tunnel + WS Server ---
 PORT = 8765
-p = subprocess.Popen(
-    ['cloudflared', 'tunnel', '--url', f'http://localhost:{PORT}', '--no-autoupdate'],
-    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-)
-url = None
-for _ in range(30):
-    line = p.stderr.readline()
-    x = re.search(r'(https://[a-z0-9-]+\.trycloudflare\.com)', line)
-    if x:
-        url = x.group(1)
-        break
-    time.sleep(0.5)
-ws_url = url.replace('https://', 'wss://') if url else 'FAILED'
-print(f'\n🎵 WS URL: {ws_url}')
-print(f'NEXT_PUBLIC_WS_URL={ws_url}')
-print(f'\n把上面的地址粘贴到 Simone 页面的 ⚙️ 设置里')
-
-from websockets.http11 import Response
-def reject_non_ws(connection, request):
-    upgrade = request.headers.get('Upgrade', '').lower()
-    if upgrade != 'websocket':
-        return Response(200, 'OK', websockets.Headers())
-    return None
+print(f'\n🎵 Simone Lyria Server on ws://localhost:{PORT}')
+print(f'Set NEXT_PUBLIC_WS_URL=ws://localhost:{PORT} in .env.local\n')
 
 async def run():
-    async with websockets.serve(handle, '0.0.0.0', PORT, max_size=10*1024*1024, process_request=reject_non_ws):
+    async with websockets.serve(handle, '0.0.0.0', PORT, max_size=10*1024*1024):
         await asyncio.Future()
 
 asyncio.get_event_loop().run_until_complete(run())

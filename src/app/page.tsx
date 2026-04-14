@@ -79,72 +79,12 @@ export default function SimonePage() {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRotatingRef = useRef(false); // true during session rotation, pre-buffer before playing
 
-  // ─── Adaptive Jitter Buffer Audio Playback ───
-  // 核心思路：像 VoIP/WebRTC 一样，根据 chunk 到达间隔的抖动动态调整缓冲深度
-  // Lyria chunk 到达间隔极不稳定（1-8s），固定 BUFFER_MIN 无法应对
-  const audioQueueRef = useRef<AudioBuffer[]>([]);
-  const scheduledSourcesRef = useRef<AudioBufferSourceNode[]>([]); // track scheduled sources
+  // ─── Audio Playback (proven working pattern from original Lyria integration) ───
+  const audioQueueRef = useRef<string[]>([]);
   const isPlayingRef = useRef(false);
-  const chunkArrivalTimesRef = useRef<number[]>([]); // 记录最近 N 个 chunk 到达时间
-  const bufferDepthRef = useRef(2); // 初始缓冲深度（chunk 数），会动态调整
-  const INITIAL_BUFFER = 2; // 初始预缓冲（Magenta RT chunk=2s，2个=4s缓冲）
-  const MIN_BUFFER = 1; // 最小缓冲深度
-  const MAX_BUFFER = 4; // 最大缓冲深度
-  const JITTER_WINDOW = 10; // 用最近 N 个间隔计算抖动
-  const hasStartedRef = useRef(false); // true after first playback — never re-buffer after that
+  const BUFFER_MIN = 3; // accumulate N chunks before starting playback
 
-  const int16ToAudioBuffer = useCallback((int16: Int16Array): AudioBuffer | null => {
-    const ctx = audioCtxRef.current;
-    if (!ctx) return null;
-    const numSamples = int16.length / CHANNELS;
-    if (numSamples === 0) return null;
-    const buffer = ctx.createBuffer(CHANNELS, numSamples, SAMPLE_RATE);
-    for (let ch = 0; ch < CHANNELS; ch++) {
-      const channelData = buffer.getChannelData(ch);
-      for (let i = 0; i < numSamples; i++) {
-        channelData[i] = int16[i * CHANNELS + ch] / 32768;
-      }
-    }
-    return buffer;
-  }, []);
-
-  const decodeBinaryToPCM = useCallback((data: ArrayBuffer): AudioBuffer | null => {
-    return int16ToAudioBuffer(new Int16Array(data));
-  }, [int16ToAudioBuffer]);
-
-  // Legacy base64 fallback
-  const decodeB64ToPCM = useCallback((b64Data: string): AudioBuffer | null => {
-    const ctx = audioCtxRef.current;
-    if (!ctx) return null;
-    const raw = atob(b64Data);
-    const bytes = new Uint8Array(raw.length);
-    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-    return decodeBinaryToPCM(bytes.buffer);
-  }, [decodeBinaryToPCM]);
-
-  // 计算自适应缓冲深度：基于 chunk 到达间隔的标准差
-  const updateBufferDepth = useCallback(() => {
-    const times = chunkArrivalTimesRef.current;
-    if (times.length < 3) return; // 数据不够，保持默认
-
-    // 计算最近的到达间隔
-    const intervals: number[] = [];
-    for (let i = 1; i < times.length; i++) {
-      intervals.push(times[i] - times[i - 1]);
-    }
-
-    // 标准差
-    const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-    const variance = intervals.reduce((a, b) => a + (b - mean) ** 2, 0) / intervals.length;
-    const stddev = Math.sqrt(variance);
-
-    // 抖动越大 → 缓冲越深。每秒抖动 ≈ 需要多少个 chunk 的缓冲
-    // 每个 chunk 大约 1.6s 的音频，所以 stddev/1.6 ≈ 需要的额外缓冲
-    const needed = Math.ceil(MIN_BUFFER + stddev / 1.5);
-    bufferDepthRef.current = Math.min(MAX_BUFFER, Math.max(MIN_BUFFER, needed));
-  }, []);
-
-  const scheduleBuffers = useCallback(() => {
+  const drainQueue = useCallback(() => {
     const ctx = audioCtxRef.current;
     const destination = gainNodeRef.current || analyserRef.current;
     if (!ctx || !destination || audioQueueRef.current.length === 0) {
@@ -153,92 +93,64 @@ export default function SimonePage() {
     }
     isPlayingRef.current = true;
 
-    // If resuming after rotation, fade in over 0.3s
-    if (isRotatingRef.current && gainNodeRef.current) {
-      const gain = gainNodeRef.current;
-      gain.gain.setValueAtTime(0, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(1.0, ctx.currentTime + 0.3);
-      isRotatingRef.current = false;
-    }
-
-    const now = ctx.currentTime;
-    // If we've fallen behind (buffer underrun), jump to now
-    // But don't set it to now+tiny — let the chunk's own duration create the buffer
-    if (nextPlayTimeRef.current < now) {
-      nextPlayTimeRef.current = now;
-    }
-
-    const MAX_AHEAD = 2; // max seconds of audio scheduled ahead
     while (audioQueueRef.current.length > 0) {
-      // Don't schedule too far ahead — keeps style changes responsive
-      if (nextPlayTimeRef.current - now > MAX_AHEAD) break;
-      const buffer = audioQueueRef.current.shift()!;
+      const b64Data = audioQueueRef.current.shift()!;
+      const raw = atob(b64Data);
+      const len = raw.length - (raw.length % 2);
+      if (len === 0) continue;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = raw.charCodeAt(i);
+      const int16 = new Int16Array(bytes.buffer);
+      const numSamples = int16.length / CHANNELS;
+      if (numSamples === 0) continue;
+      const buffer = ctx.createBuffer(CHANNELS, numSamples, SAMPLE_RATE);
+      for (let ch = 0; ch < CHANNELS; ch++) {
+        const channelData = buffer.getChannelData(ch);
+        for (let i = 0; i < numSamples; i++) {
+          channelData[i] = int16[i * CHANNELS + ch] / 32768;
+        }
+      }
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       source.connect(destination);
+      const now = ctx.currentTime;
+      if (nextPlayTimeRef.current < now) {
+        nextPlayTimeRef.current = now + 0.02;
+      }
       source.start(nextPlayTimeRef.current);
-      // Overlap by 5ms — matched with server-side 5ms sin² fade for gapless crossfade
-      nextPlayTimeRef.current += buffer.duration - 0.005;
-      scheduledSourcesRef.current.push(source);
-      source.onended = () => {
-        scheduledSourcesRef.current = scheduledSourcesRef.current.filter(s => s !== source);
-        scheduleBuffers();
-      };
+      nextPlayTimeRef.current += buffer.duration;
     }
   }, []);
 
-  const playAudioChunk = useCallback((data: string | ArrayBuffer | AudioBuffer) => {
+  const playAudioChunk = useCallback((b64Data: string) => {
     const ctx = audioCtxRef.current;
     if (!ctx) return;
     if (ctx.state === 'suspended') ctx.resume();
-
-    let buffer: AudioBuffer | null;
-    if (data instanceof AudioBuffer) {
-      buffer = data;
-    } else if (data instanceof ArrayBuffer) {
-      buffer = decodeBinaryToPCM(data);
-    } else {
-      buffer = decodeB64ToPCM(data);
-    }
-    if (!buffer) return;
-
-    // 记录到达时间用于 jitter 计算
-    const now = performance.now() / 1000;
-    const arrivals = chunkArrivalTimesRef.current;
-    arrivals.push(now);
-    if (arrivals.length > JITTER_WINDOW + 1) arrivals.shift();
-    updateBufferDepth();
-
-    audioQueueRef.current.push(buffer);
+    audioQueueRef.current.push(b64Data);
 
     // 风格确认：收到第一个新 chunk 时，把 pending 元素确认为 confirmed
     if (awaitingConfirmRef.current) {
       awaitingConfirmRef.current = false;
       const pending = pendingElementsRef.current;
       setConfirmedElements(pending);
-      // 背景也在确认时才变
       const poolGenre = inferGenreFromPool(pending);
       if (poolGenre) setGenre(poolGenre);
     }
 
-    // 播放决策：
-    // - 首次启动 / 轮转后：预缓冲 N 个 chunk 再开始
-    // - 已经播放过：来一个立即 schedule，靠已有的 scheduled-ahead 音频扛抖动
-    if (!hasStartedRef.current) {
-      // 首次：预缓冲
-      const target = isRotatingRef.current ? INITIAL_BUFFER : bufferDepthRef.current;
-      if (audioQueueRef.current.length < target) return;
-      hasStartedRef.current = true;
-    }
-    scheduleBuffers();
-  }, [decodeB64ToPCM, updateBufferDepth, scheduleBuffers]);
+    if (!isPlayingRef.current && audioQueueRef.current.length < BUFFER_MIN) return;
+    drainQueue();
+  }, [drainQueue]);
 
   // ─── WebSocket connect (returns Promise that resolves when Lyria session is ready) ───
   const connectWs = useCallback((): Promise<void> => {
     return new Promise((resolve, reject) => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        if (lyriaReadyRef.current) { resolve(); return; }
+      // Close any existing connection (OPEN or still CONNECTING)
+      if (wsRef.current) {
+        if (wsRef.current.readyState === WebSocket.OPEN && lyriaReadyRef.current) {
+          resolve(); return;
+        }
         wsRef.current.close();
+        wsRef.current = null;
       }
       lyriaReadyRef.current = false;
       lyriaReadyResolveRef.current = resolve;
@@ -252,10 +164,7 @@ export default function SimonePage() {
           audioCtxRef.current.close().catch(() => {});
         }
         audioQueueRef.current = [];
-        chunkArrivalTimesRef.current = [];
-        bufferDepthRef.current = INITIAL_BUFFER;
         isPlayingRef.current = false;
-        hasStartedRef.current = false;
         isRotatingRef.current = false;
         const ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
         const gain = ctx.createGain();
@@ -272,20 +181,12 @@ export default function SimonePage() {
         setChunkCount(0);
         if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       };
-      ws.binaryType = 'arraybuffer';
       ws.onmessage = (evt) => {
-        // Binary frame = raw PCM int16 audio (no JSON, no base64)
-        if (evt.data instanceof ArrayBuffer) {
-          chunkCountRef.current++;
-          setChunkCount(chunkCountRef.current);
-          playAudioChunk(evt.data);
-          return;
-        }
+        if (typeof evt.data !== 'string') return;
         const data = JSON.parse(evt.data);
         if (data.type === 'audio') {
           chunkCountRef.current++;
           setChunkCount(chunkCountRef.current);
-          // Lyria RealTime sends raw PCM as base64
           playAudioChunk(data.data);
         } else if (data.type === 'status') {
           if (data.message === 'reconnecting') {
@@ -298,10 +199,8 @@ export default function SimonePage() {
               gain.gain.setValueAtTime(gain.gain.value, now);
               gain.gain.linearRampToValueAtTime(0, now + 0.2);
             }
-            // Clear queue but keep hasStartedRef=true — no re-buffering on rotation
-            // Rotation chunks should play immediately to minimize silence gap
+            // Clear queue on rotation
             audioQueueRef.current = [];
-            chunkArrivalTimesRef.current = [];
             isPlayingRef.current = false;
             isRotatingRef.current = true; // will fade in on next chunk
             if (audioCtxRef.current) {
@@ -679,6 +578,10 @@ export default function SimonePage() {
       document.removeEventListener('visibilitychange', handleVisibility);
       clearInterval(interval);
       wsRef.current?.close();
+      // Close AudioContext to prevent lingering playback after HMR/unmount
+      audioCtxRef.current?.close().catch(() => {});
+      audioCtxRef.current = null;
+      audioQueueRef.current = [];
     };
   }, [sendWs, connectWs, applyLyriaUpdate]);
 
