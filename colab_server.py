@@ -84,25 +84,45 @@ def gen_one_chunk(gs, s):
         msg = json.dumps({'type': 'audio', 'data': b64, 'enc': 'opus'})
     print(f'[gen] {gen_time:.2f}s')
     return msg, gs2
+TRANSITION_CHUNKS = 4  # interpolate over 4 chunks (8 seconds)
+
 async def handle(ws):
     playing = False
     style = None
+    style_target = None  # target style for interpolation
+    style_from = None    # starting style for interpolation
+    transition_step = 0  # 0 = no transition, 1..TRANSITION_CHUNKS = interpolating
     gs = None
     gt = None
     style_ver = 0
     loop = asyncio.get_event_loop()
     async def gen_and_send():
-        nonlocal gs, playing, style, style_ver
+        nonlocal gs, playing, style, style_ver, style_target, style_from, transition_step
         while playing:
             try:
-                s = style if style is not None else get_style('chill ambient music with soft piano')
+                # Compute current style with interpolation
+                if transition_step > 0 and style_from is not None and style_target is not None:
+                    t = transition_step / TRANSITION_CHUNKS
+                    s = style_from + t * (style_target - style_from)
+                    print(f'[transition] step {transition_step}/{TRANSITION_CHUNKS} t={t:.2f}')
+                    transition_step += 1
+                    if transition_step > TRANSITION_CHUNKS:
+                        # Transition complete
+                        style = style_target
+                        style_from = None
+                        style_target = None
+                        transition_step = 0
+                        print(f'[transition] complete')
+                    s_current = s
+                else:
+                    s_current = style if style is not None else get_style('chill ambient music with soft piano')
                 ver_before = style_ver
-                msg, gs2 = await loop.run_in_executor(_executor, gen_one_chunk, gs, s)
-                # Style changed during generation — discard old chunk, regenerate immediately
-                if style_ver != ver_before:
-                    print(f'[skip] style changed during gen, discarding old chunk')
-                    gs = None  # reset state for clean new-style start
-                    continue
+                msg, gs2 = await loop.run_in_executor(_executor, gen_one_chunk, gs, s_current)
+                # Style changed during generation — don't discard, let interpolation handle it
+                if style_ver != ver_before and transition_step == 0:
+                    # New style arrived while generating, but we already have the chunk
+                    # Just send it and let the next iteration pick up the interpolation
+                    pass
                 gs = gs2
                 if not playing:
                     break
@@ -123,9 +143,23 @@ async def handle(ws):
             if cmd == 'set_prompts':
                 ps = m.get('prompts', [])
                 if ps:
-                    style = blend_styles(ps)
+                    new_style = blend_styles(ps)
                     style_ver += 1
-                    print(f'[style] v{style_ver} changed to: {[p["text"][:30] for p in ps]}')
+                    if style is not None:
+                        # Start smooth interpolation from current position to new style
+                        # If already transitioning, start from current interpolated position
+                        if transition_step > 0 and style_from is not None and style_target is not None:
+                            t = transition_step / TRANSITION_CHUNKS
+                            style_from = style_from + t * (style_target - style_from)
+                        else:
+                            style_from = style.copy()
+                        style_target = new_style
+                        transition_step = 1
+                        print(f'[style] v{style_ver} transitioning to: {[p["text"][:30] for p in ps]}')
+                    else:
+                        # First style — set immediately
+                        style = new_style
+                        print(f'[style] v{style_ver} set to: {[p["text"][:30] for p in ps]}')
             elif cmd == 'play' and not playing:
                 playing = True
                 gs = None
