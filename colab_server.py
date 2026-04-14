@@ -84,7 +84,7 @@ def gen_one_chunk(gs, s):
         msg = json.dumps({'type': 'audio', 'data': b64, 'enc': 'opus'})
     print(f'[gen] {gen_time:.2f}s')
     return msg, gs2
-TRANSITION_CHUNKS = 4  # interpolate over 4 chunks (8 seconds)
+TRANSITION_CHUNKS = 2  # interpolate over 2 chunks (4 seconds)
 
 async def handle(ws):
     playing = False

@@ -593,7 +593,7 @@ export default function SimonePage() {
         }
         lastUpdateRef.current = { prompts, action: 'update' };
         autoReconnectRef.current = true;
-      }, 500);
+      }, 300);
       return next;
     });
   }, [sendWs, connectWs, status]);
