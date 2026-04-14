@@ -49,7 +49,7 @@ export default function SimonePage() {
 
   // ─── WebSocket / Audio State ───
   const [wsUrl, setWsUrl] = useState(() => getWsUrl());
-
+  const [showWsConfig, setShowWsConfig] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [status, setStatus] = useState('未连接');
   const [chunkCount, setChunkCount] = useState(0);
@@ -739,9 +739,51 @@ export default function SimonePage() {
           />
         </div>
 
+        {/* WS URL config */}
+        {showWsConfig && (
+          <div className="px-4 pb-2">
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                defaultValue={wsUrl}
+                placeholder="wss://xxx.trycloudflare.com"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = (e.target as HTMLInputElement).value.trim();
+                    if (val) {
+                      localStorage.setItem('simone_ws_url', val);
+                      setWsUrl(val);
+                      setShowWsConfig(false);
+                      if (wsRef.current) { wsRef.current.close(); }
+                    }
+                  }
+                }}
+                className="flex-1 px-3 py-2 rounded-xl glass text-[11px] text-white/70 placeholder-white/25 outline-none input-glow font-mono"
+              />
+              <button
+                onClick={() => {
+                  localStorage.removeItem('simone_ws_url');
+                  setWsUrl(getWsUrl());
+                  setShowWsConfig(false);
+                }}
+                className="text-[10px] text-white/30 hover:text-white/60"
+              >重置</button>
+            </div>
+          </div>
+        )}
+
         {/* Input bar */}
         <div className="px-4 pb-4 pt-2">
           <div className="flex gap-2.5">
+            <button
+              onClick={() => setShowWsConfig(v => !v)}
+              className="self-center text-white/20 hover:text-white/50 transition-all"
+              title="设置 WS 地址"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </button>
             <input
               type="text"
               value={input}
