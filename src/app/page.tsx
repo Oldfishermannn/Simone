@@ -644,14 +644,12 @@ export default function JamPage() {
     }
   }, [wsConnected, connectWs, applyLyriaUpdate]);
 
-  // ─── Background playback: keep AudioContext alive + MediaSession ───
+  // ─── Background playback: silent <audio> keep-alive + WS recovery ───
   useEffect(() => {
-    // MediaSession: show playback info on lock screen / notification
+    // MediaSession: lock screen controls
     if ('mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: 'DJ Cyber',
-        artist: 'Lyria RealTime',
-        album: 'AI Music',
+        title: 'DJ Cyber', artist: 'Lyria RealTime', album: 'AI Music',
       });
       navigator.mediaSession.setActionHandler('play', () => {
         audioCtxRef.current?.resume();
@@ -662,38 +660,65 @@ export default function JamPage() {
       });
     }
 
-    // Keep AudioContext alive in background with a silent oscillator
-    let keepAliveOsc: OscillatorNode | null = null;
-    const startKeepAlive = () => {
-      const ctx = audioCtxRef.current;
-      if (!ctx || keepAliveOsc) return;
-      const osc = ctx.createOscillator();
-      const silentGain = ctx.createGain();
-      silentGain.gain.value = 0; // completely silent
-      osc.connect(silentGain);
-      silentGain.connect(ctx.destination);
-      osc.start();
-      keepAliveOsc = osc;
+    // Silent WAV data URI — 1 second of silence, 8kHz mono 8-bit
+    // This is the #1 trick for preventing Chrome/Safari from freezing the page
+    let silentAudio: HTMLAudioElement | null = null;
+    const startSilentAudio = () => {
+      if (silentAudio) return;
+      // Minimal WAV: RIFF header + fmt chunk + data chunk, 8000 bytes of silence
+      const sampleRate = 8000;
+      const numSamples = sampleRate; // 1 second
+      const headerSize = 44;
+      const buf = new ArrayBuffer(headerSize + numSamples);
+      const view = new DataView(buf);
+      // RIFF header
+      const writeStr = (off: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + numSamples, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true); // chunk size
+      view.setUint16(20, 1, true);  // PCM
+      view.setUint16(22, 1, true);  // mono
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate, true); // byte rate
+      view.setUint16(32, 1, true);  // block align
+      view.setUint16(34, 8, true);  // bits per sample
+      writeStr(36, 'data');
+      view.setUint32(40, numSamples, true);
+      // data bytes are 0 = silence for 8-bit PCM (128 = center, but 0 works for keep-alive)
+      for (let i = 0; i < numSamples; i++) view.setUint8(headerSize + i, 128);
+      const blob = new Blob([buf], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      silentAudio = new Audio(url);
+      silentAudio.loop = true;
+      silentAudio.volume = 0.01; // near-silent but > 0 so Chrome doesn't skip
+      silentAudio.play().catch(() => {}); // may need user gesture first
     };
 
-    // Resume audio when returning to foreground
+    // When returning to foreground: resume AudioContext + check WS
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
+        // Resume AudioContext
         const ctx = audioCtxRef.current;
-        if (ctx?.state === 'suspended') {
-          ctx.resume();
+        if (ctx?.state === 'suspended') ctx.resume();
+        // If WS died in background, auto-reconnect
+        if (wsRef.current?.readyState !== WebSocket.OPEN && autoReconnectRef.current && lastUpdateRef.current) {
+          console.log('[Background] WS断了，自动重连...');
+          setStatus('重连中...');
+          connectWs().then(() => {
+            if (lastUpdateRef.current) applyLyriaUpdate({ ...lastUpdateRef.current, action: 'play' as const });
+          }).catch(() => {});
         }
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
-    // Start keep-alive when audio context exists
+    // Start silent audio when we have an audio context (needs to piggyback on user gesture)
     const interval = setInterval(() => {
-      if (audioCtxRef.current && !keepAliveOsc) {
-        startKeepAlive();
-        if ('mediaSession' in navigator) {
-          navigator.mediaSession.playbackState = 'playing';
-        }
+      if (audioCtxRef.current && !silentAudio) {
+        startSilentAudio();
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
       }
     }, 1000);
 
@@ -701,12 +726,12 @@ export default function JamPage() {
       autoReconnectRef.current = false;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      if (keepAliveOsc) { keepAliveOsc.stop(); keepAliveOsc = null; }
+      if (silentAudio) { silentAudio.pause(); silentAudio.src = ''; silentAudio = null; }
       document.removeEventListener('visibilitychange', handleVisibility);
       clearInterval(interval);
       wsRef.current?.close();
     };
-  }, [sendWs]);
+  }, [sendWs, connectWs, applyLyriaUpdate]);
 
   const [showPanel, setShowPanel] = useState(false);
 
