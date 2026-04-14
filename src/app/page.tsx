@@ -625,10 +625,16 @@ export default function SimonePage() {
       <div className="flex flex-col h-[100dvh]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {/* Chat area or initial greeting */}
         {messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-8 px-4">
-            <div className="text-center">
-              <h1 className="text-2xl font-light text-white mb-2">Simone</h1>
-              <p className="text-white/60 text-sm">嗨，想听点什么？</p>
+          <div className="flex-1 flex flex-col items-center justify-center gap-10 px-4">
+            <div className="text-center animate-fade-up">
+              <h1 className="text-4xl font-light text-white/90 mb-3 tracking-wide"
+                  style={{ fontFamily: 'var(--font-display)' }}>
+                Simone
+              </h1>
+              <p className="text-white/40 text-[14px] animate-fade-up"
+                 style={{ animationDelay: '0.2s', fontFamily: 'var(--font-body)' }}>
+                嗨，想听点什么？
+              </p>
             </div>
             <GenreCards onSelect={handleGenreSelect} />
           </div>
@@ -646,23 +652,30 @@ export default function SimonePage() {
 
         {/* Input bar */}
         <div className="px-4 pb-4 pt-2">
-          <div className="flex gap-2">
+          <div className="flex gap-2.5">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder="跟 Simone 说点什么..."
-              className="flex-1 px-4 py-3 rounded-2xl bg-white/10 backdrop-blur-md
-                         text-white placeholder-white/40 text-sm outline-none
-                         focus:ring-1 focus:ring-white/30"
+              className="flex-1 px-5 py-3.5 rounded-2xl glass text-[13.5px]
+                         text-white/90 placeholder-white/30 outline-none
+                         input-glow transition-all duration-300"
+              style={{ fontFamily: 'var(--font-body)' }}
               disabled={isLoading}
             />
             <button
               onClick={handleSend}
               disabled={isLoading || !input.trim()}
-              className="px-5 py-3 rounded-2xl bg-[var(--simone-accent)] text-white text-sm
-                         font-medium disabled:opacity-40 active:scale-95 transition-transform"
+              className="px-5 py-3.5 rounded-2xl text-[13px] tracking-wide
+                         text-[#0d0d1a] font-medium disabled:opacity-30
+                         active:scale-[0.96] transition-all duration-300
+                         hover:shadow-lg hover:shadow-[var(--simone-accent)]/20"
+              style={{
+                background: 'linear-gradient(135deg, var(--simone-accent), var(--simone-accent-warm))',
+                fontFamily: 'var(--font-body)',
+              }}
             >
               发送
             </button>
