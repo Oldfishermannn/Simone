@@ -59,7 +59,7 @@ export default function SimonePage() {
   const [genre, setGenre] = useState('default');
   const [activeTag, setActiveTag] = useState('');
   const [showTune, setShowTune] = useState(false);
-  const [tuneValues, setTuneValues] = useState({ brightness: 0.5, density: 0.5, bpm: 120, temperature: 1.1 });
+  const [tuneValues, setTuneValues] = useState({ temperature: 1.3, guidance_weight: 5.0 });
 
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -388,25 +388,24 @@ export default function SimonePage() {
     }
 
     if (update.config && Object.keys(update.config).length > 0) {
-      // Sync tune panel values from AI response
+      // Sync tune panel values from AI response (Magenta RT params only)
       const c = update.config as Record<string, number>;
       setTuneValues(prev => ({
-        brightness: c.brightness ?? prev.brightness,
-        density: c.density ?? prev.density,
-        bpm: c.bpm ?? prev.bpm,
         temperature: c.temperature ?? prev.temperature,
+        guidance_weight: c.guidance_weight ?? prev.guidance_weight,
       }));
-      // Remove scale field - Lyria API rejects string enum values from Gemini
-      const { scale: _scale, ...safeConfig } = update.config;
-      if (Object.keys(safeConfig).length > 0) {
-        // Only send set_config if values actually changed — resending resets entire config and causes stutter
-        const configJson = JSON.stringify(safeConfig);
+      // Only send supported Magenta RT params
+      const magentaConfig: Record<string, number> = {};
+      if (c.temperature != null) magentaConfig.temperature = c.temperature;
+      if (c.guidance_weight != null) magentaConfig.guidance_weight = c.guidance_weight;
+      if (Object.keys(magentaConfig).length > 0) {
+        const configJson = JSON.stringify(magentaConfig);
         if (configJson !== lastSentConfigRef.current) {
-          sendWs({ command: 'set_config', config: safeConfig });
+          sendWs({ command: 'set_config', config: magentaConfig });
           lastSentConfigRef.current = configJson;
         }
       }
-      setCurrentConfig(prev => ({ ...prev, ...safeConfig }));
+      setCurrentConfig(prev => ({ ...prev, ...magentaConfig }));
     }
 
     if (update.action) {
@@ -592,21 +591,10 @@ export default function SimonePage() {
     }
   }, [sendWs, status]);
 
-  // ─── Tune panel: direct config update ───
+  // ─── Tune panel: direct config update (Magenta RT) ───
   const handleTuneUpdate = useCallback((config: Record<string, unknown>) => {
     setTuneValues(prev => ({ ...prev, ...config }));
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      // BPM change > 15 needs reset_context
-      if (config.bpm && lastUpdateRef.current?.config) {
-        const oldBpm = (lastUpdateRef.current.config as Record<string, number>).bpm || 120;
-        if (Math.abs((config.bpm as number) - oldBpm) > 15) {
-          sendWs({ command: 'set_config', config });
-          sendWs({ command: 'reset_context' });
-          sendWs({ command: 'play' });
-          lastUpdateRef.current = { ...lastUpdateRef.current, config: { ...lastUpdateRef.current.config, ...config } };
-          return;
-        }
-      }
       sendWs({ command: 'set_config', config });
       if (lastUpdateRef.current) {
         lastUpdateRef.current = { ...lastUpdateRef.current, config: { ...lastUpdateRef.current.config, ...config } };
@@ -839,10 +827,8 @@ export default function SimonePage() {
             </div>
           )}
           <TunePanel
-            brightness={tuneValues.brightness}
-            density={tuneValues.density}
-            bpm={tuneValues.bpm}
             temperature={tuneValues.temperature}
+            guidance_weight={tuneValues.guidance_weight}
             onUpdate={handleTuneUpdate}
             onShuffle={handleShuffle}
             visible={showTune}

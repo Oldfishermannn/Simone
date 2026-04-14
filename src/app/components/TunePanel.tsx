@@ -3,10 +3,8 @@
 import { useState } from 'react';
 
 interface Props {
-  brightness: number;
-  density: number;
-  bpm: number;
   temperature: number;
+  guidance_weight: number;
   onUpdate: (config: Record<string, unknown>) => void;
   onShuffle: () => void;
   visible: boolean;
@@ -39,13 +37,11 @@ function Slider({
         </span>
         <span className="text-[11px] text-white/60 tabular-nums"
               style={{ fontFamily: 'var(--font-body)' }}>
-          {Number.isInteger(step) ? value : value.toFixed(1)}{unit || ''}
+          {value.toFixed(1)}{unit || ''}
         </span>
       </div>
       <div className="relative h-6 flex items-center">
-        {/* Track background */}
         <div className="absolute inset-x-0 h-[3px] rounded-full bg-white/8" />
-        {/* Active track */}
         <div
           className="absolute left-0 h-[3px] rounded-full"
           style={{
@@ -53,7 +49,6 @@ function Slider({
             background: 'linear-gradient(90deg, var(--simone-accent), var(--simone-accent-warm))',
           }}
         />
-        {/* Thumb glow */}
         <div
           className="absolute w-3 h-3 rounded-full -translate-x-1/2 pointer-events-none"
           style={{
@@ -76,30 +71,21 @@ function Slider({
   );
 }
 
-export default function TunePanel({ brightness, density, bpm, temperature, onUpdate, onShuffle, visible }: Props) {
-  const [localBrightness, setLocalBrightness] = useState(brightness);
-  const [localDensity, setLocalDensity] = useState(density);
-  const [localBpm, setLocalBpm] = useState(bpm);
+export default function TunePanel({ temperature, guidance_weight, onUpdate, onShuffle, visible }: Props) {
   const [localTemp, setLocalTemp] = useState(temperature);
+  const [localGuide, setLocalGuide] = useState(guidance_weight);
 
-  // Sync from parent when external changes happen
-  // (simple approach: track last known parent values)
-  const [lastParent, setLastParent] = useState({ brightness, density, bpm, temperature });
-  if (brightness !== lastParent.brightness || density !== lastParent.density ||
-      bpm !== lastParent.bpm || temperature !== lastParent.temperature) {
-    setLastParent({ brightness, density, bpm, temperature });
-    setLocalBrightness(brightness);
-    setLocalDensity(density);
-    setLocalBpm(bpm);
+  const [lastParent, setLastParent] = useState({ temperature, guidance_weight });
+  if (temperature !== lastParent.temperature || guidance_weight !== lastParent.guidance_weight) {
+    setLastParent({ temperature, guidance_weight });
     setLocalTemp(temperature);
+    setLocalGuide(guidance_weight);
   }
 
   const handleChange = (key: string, value: number) => {
     switch (key) {
-      case 'brightness': setLocalBrightness(value); break;
-      case 'density': setLocalDensity(value); break;
-      case 'bpm': setLocalBpm(value); break;
       case 'temperature': setLocalTemp(value); break;
+      case 'guidance_weight': setLocalGuide(value); break;
     }
     onUpdate({ [key]: value });
   };
@@ -131,14 +117,10 @@ export default function TunePanel({ brightness, density, bpm, temperature, onUpd
         </button>
       </div>
 
-      <Slider label="明亮度" value={localBrightness} min={0} max={1} step={0.1}
-              onChange={(v) => handleChange('brightness', v)} />
-      <Slider label="密度" value={localDensity} min={0} max={1} step={0.1}
-              onChange={(v) => handleChange('density', v)} />
-      <Slider label="速度" value={localBpm} min={60} max={200} step={5} unit=" BPM"
-              onChange={(v) => handleChange('bpm', v)} />
-      <Slider label="随机感" value={localTemp} min={0} max={3} step={0.1}
+      <Slider label="随机感" value={localTemp} min={0.3} max={3.0} step={0.1}
               onChange={(v) => handleChange('temperature', v)} />
+      <Slider label="风格强度" value={localGuide} min={1.0} max={8.0} step={0.5}
+              onChange={(v) => handleChange('guidance_weight', v)} />
     </div>
   );
 }

@@ -63,7 +63,34 @@ prompts 是一个数组，支持多个 WeightedPrompt 混合叠加：
 - "pause" / "stop": 暂停/停止
 
 ⚠️ 不要使用 "reset_context"！模型会自然过渡，重置会导致音乐中断。
-⚠️ 不要输出 config 字段！Magenta RT 不支持 bpm/density/brightness 等参数。
+
+## config 参数（可选，精细调控音乐质感）
+
+你可以在 JSON 中加入 config 字段来微调音乐生成：
+
+\`\`\`json
+{
+  "prompts": [...],
+  "action": "update",
+  "genre": "chill",
+  "config": {
+    "temperature": 1.3,
+    "guidance_weight": 5.0
+  }
+}
+\`\`\`
+
+| 参数 | 范围 | 默认 | 作用 |
+|------|------|------|------|
+| temperature | 0.3 ~ 3.0 | 1.3 | 越高越多变/即兴，越低越稳定/重复 |
+| guidance_weight | 1.0 ~ 8.0 | 5.0 | 越高越贴合 prompt 描述，越低越自由 |
+
+使用场景：
+- 用户要"稳定的背景音乐" → temperature: 0.8, guidance_weight: 6.0
+- 用户要"即兴/自由一点" → temperature: 2.0, guidance_weight: 3.0
+- 用户要"完全按描述来" → guidance_weight: 7.0
+- 默认不需要输出 config，只在用户有特殊需求时使用
+- ⚠️ 不要输出 bpm/density/brightness/topk，这些参数不暴露给用户
 
 ## 说话风格示例
 

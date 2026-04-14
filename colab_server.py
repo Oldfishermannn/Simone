@@ -52,10 +52,17 @@ def encode_opus(int16_bytes):
     if proc.returncode != 0:
         return None
     return proc.stdout
+gen_config = {'temperature': 1.3, 'guidance_weight': 5.0, 'topk': 40}
+
 def gen_one_chunk(gs, s):
     """Run in thread — blocking but doesn't hold event loop."""
     t0 = time.time()
-    c, gs2 = mrt.generate_chunk(state=gs, style=s)
+    c, gs2 = mrt.generate_chunk(
+        state=gs, style=s,
+        temperature=gen_config['temperature'],
+        guidance_weight=gen_config['guidance_weight'],
+        topk=gen_config['topk'],
+    )
     gen_time = time.time() - t0
     int16 = np.clip(c.samples.flatten() * 32767, -32768, 32767).astype(np.int16)
     raw_bytes = int16.tobytes()
@@ -121,6 +128,16 @@ async def handle(ws):
                 if cmd == 'stop':
                     gs = None
                 await ws.send(json.dumps({'type': 'status', 'message': '已暂停' if cmd == 'pause' else '已停止'}))
+            elif cmd == 'set_config':
+                cfg = m.get('config', {})
+                if 'temperature' in cfg:
+                    gen_config['temperature'] = max(0.0, min(4.0, float(cfg['temperature'])))
+                if 'guidance_weight' in cfg:
+                    gen_config['guidance_weight'] = max(0.0, min(10.0, float(cfg['guidance_weight'])))
+                if 'topk' in cfg:
+                    gen_config['topk'] = max(1, min(1024, int(cfg['topk'])))
+                print(f'[config] temp={gen_config["temperature"]:.1f} guide={gen_config["guidance_weight"]:.1f} topk={gen_config["topk"]}')
+                await ws.send(json.dumps({'type': 'status', 'message': '参数已更新'}))
             elif cmd == 'reset_context':
                 gs = None
     except websockets.exceptions.ConnectionClosed:
