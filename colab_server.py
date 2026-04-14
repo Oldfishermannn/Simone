@@ -6,6 +6,10 @@ for gpu in gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
 import subprocess, asyncio, json, base64, gzip, re, time
 import numpy as np
+# Kill old processes
+subprocess.run(['fuser', '-k', '8765/tcp'], capture_output=True)
+subprocess.run(['pkill', '-f', 'cloudflared'], capture_output=True)
+time.sleep(0.5)
 subprocess.run(['wget', '-q', 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64', '-O', '/usr/local/bin/cloudflared'], check=True)
 subprocess.run(['chmod', '+x', '/usr/local/bin/cloudflared'], check=True)
 import nest_asyncio
