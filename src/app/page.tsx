@@ -192,8 +192,8 @@ export default function SimonePage() {
       source.buffer = buffer;
       source.connect(destination);
       source.start(nextPlayTimeRef.current);
-      // Overlap chunks by 10ms to eliminate micro-gaps from Opus codec padding
-      nextPlayTimeRef.current += buffer.duration - 0.01;
+      // Overlap by 5ms — matched with server-side 5ms sin² fade for gapless crossfade
+      nextPlayTimeRef.current += buffer.duration - 0.005;
       scheduledSourcesRef.current.push(source);
       source.onended = () => {
         scheduledSourcesRef.current = scheduledSourcesRef.current.filter(s => s !== source);

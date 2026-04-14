@@ -64,9 +64,9 @@ def gen_one_chunk(gs, s):
         topk=gen_config['topk'],
     )
     gen_time = time.time() - t0
-    # Micro fade (5ms = 240 samples) just to prevent hard clicks, not audible as volume dip
+    # 5ms sin² crossfade (240 samples) — matched with client-side 5ms overlap for gapless playback
     samples = c.samples  # shape (96000, 2)
-    fade_len = 240
+    fade_len = 240  # 5ms at 48kHz — must match client OVERLAP_SECONDS = 0.005
     fade_in = np.sin(np.linspace(0, np.pi/2, fade_len)) ** 2
     fade_out = np.sin(np.linspace(np.pi/2, 0, fade_len)) ** 2
     samples[:fade_len] *= fade_in[:, np.newaxis]
