@@ -5,6 +5,7 @@ import { SIMONE_SYSTEM_PROMPT } from './simone-prompt';
 import AmbientBackground from './components/AmbientBackground';
 import GenreCards from './components/GenreCards';
 import MiniPlayer from './components/MiniPlayer';
+import TunePanel from './components/TunePanel';
 import ChatBubbles from './components/ChatBubbles';
 
 // ─── Types ───
@@ -45,8 +46,11 @@ export default function SimonePage() {
   const [currentPrompts, setCurrentPrompts] = useState<Array<{ text: string; weight: number }>>([]);
   const [currentConfig, setCurrentConfig] = useState<Record<string, unknown>>({});
 
-  // ─── Genre State ───
+  // ─── Genre & Tag State ───
   const [genre, setGenre] = useState('default');
+  const [activeTag, setActiveTag] = useState('');
+  const [showTune, setShowTune] = useState(false);
+  const [tuneValues, setTuneValues] = useState({ brightness: 0.5, density: 0.5, bpm: 120, temperature: 1.1 });
 
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -309,6 +313,14 @@ export default function SimonePage() {
     }
 
     if (update.config && Object.keys(update.config).length > 0) {
+      // Sync tune panel values from AI response
+      const c = update.config as Record<string, number>;
+      setTuneValues(prev => ({
+        brightness: c.brightness ?? prev.brightness,
+        density: c.density ?? prev.density,
+        bpm: c.bpm ?? prev.bpm,
+        temperature: c.temperature ?? prev.temperature,
+      }));
       // Remove scale field - Lyria API rejects string enum values from Gemini
       const { scale: _scale, ...safeConfig } = update.config;
       if (Object.keys(safeConfig).length > 0) {
@@ -435,9 +447,12 @@ export default function SimonePage() {
     }
   };
 
-  // ─── Genre card selection ───
-  const handleGenreSelect = useCallback((genreId: string, prompt: string) => {
-    setGenre(genreId);
+  // ─── Tag/genre card selection ───
+  const handleGenreSelect = useCallback((tagId: string, prompt: string) => {
+    setActiveTag(tagId);
+    // Only set genre for known genre IDs (affects background)
+    const genreIds = ['chill', 'jazz', 'rock', 'electronic', 'lofi', 'funk', 'rnb'];
+    if (genreIds.includes(tagId)) setGenre(tagId);
     setInput('');
     setIsLoading(true);
     const userMsg: Message = { id: uid(), role: 'user', text: prompt, time: Date.now() };
@@ -501,6 +516,83 @@ export default function SimonePage() {
       }
     }
   }, [sendWs, status]);
+
+  // ─── Tune panel: direct config update ───
+  const handleTuneUpdate = useCallback((config: Record<string, unknown>) => {
+    setTuneValues(prev => ({ ...prev, ...config }));
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      // BPM change > 15 needs reset_context
+      if (config.bpm && lastUpdateRef.current?.config) {
+        const oldBpm = (lastUpdateRef.current.config as Record<string, number>).bpm || 120;
+        if (Math.abs((config.bpm as number) - oldBpm) > 15) {
+          sendWs({ command: 'set_config', config });
+          sendWs({ command: 'reset_context' });
+          sendWs({ command: 'play' });
+          lastUpdateRef.current = { ...lastUpdateRef.current, config: { ...lastUpdateRef.current.config, ...config } };
+          return;
+        }
+      }
+      sendWs({ command: 'set_config', config });
+      if (lastUpdateRef.current) {
+        lastUpdateRef.current = { ...lastUpdateRef.current, config: { ...lastUpdateRef.current.config, ...config } };
+      }
+    }
+  }, [sendWs]);
+
+  // ─── Shuffle: same genre, new variation ───
+  const handleShuffle = useCallback(() => {
+    if (!lastUpdateRef.current) return;
+    const currentGenre = genre === 'default' ? '来点音乐' : `继续 ${genre} 风格，但换一首不一样的`;
+    // Send as a chat message to Simone
+    setInput('');
+    setIsLoading(true);
+    const userMsg: Message = { id: uid(), role: 'user', text: currentGenre, time: Date.now() };
+    setMessages(prev => [...prev, userMsg]);
+
+    const history = historyRef.current;
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemPrompt: SIMONE_SYSTEM_PROMPT,
+        history,
+        userMessage: currentGenre,
+      }),
+    })
+      .then(res => {
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        const rawText: string = data.text ?? '';
+        const { text: aiText, params } = parseResponse(rawText);
+        const aiMsg: Message = { id: uid(), role: 'ai', text: aiText, params, time: Date.now() };
+        setMessages(prev => [...prev, aiMsg]);
+        historyRef.current = [
+          ...history,
+          { role: 'user' as const, parts: [{ text: currentGenre }] },
+          { role: 'model' as const, parts: [{ text: rawText }] },
+        ].slice(-20);
+        if (params) {
+          if ((params as Record<string, unknown>).genre) {
+            setGenre((params as Record<string, unknown>).genre as string);
+          }
+          if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !lyriaReadyRef.current) {
+            connectWs().then(() => applyLyriaUpdate(params)).catch(() => {});
+          } else {
+            applyLyriaUpdate(params);
+          }
+        }
+      })
+      .catch(err => {
+        setMessages(prev => [...prev, {
+          id: uid(), role: 'system',
+          text: '连接出错: ' + (err instanceof Error ? err.message : String(err)),
+          time: Date.now(),
+        }]);
+      })
+      .finally(() => setIsLoading(false));
+  }, [genre, connectWs, applyLyriaUpdate]);
 
   // ─── Auto-reconnect when Lyria session times out ───
   useEffect(() => {
@@ -638,7 +730,7 @@ export default function SimonePage() {
               </p>
             </div>
           )}
-          <GenreCards onSelect={handleGenreSelect} activeGenre={genre} />
+          <GenreCards onSelect={handleGenreSelect} activeGenre={genre} activeTag={activeTag} />
         </div>
 
         {/* Chat area */}
@@ -646,13 +738,41 @@ export default function SimonePage() {
           <ChatBubbles messages={messages} isLoading={isLoading} />
         )}
 
-        {/* Mini player */}
-        <MiniPlayer
-          isPlaying={wsConnected && status === '播放中'}
-          genre={genre}
-          analyser={analyserRef.current}
-          onTogglePlay={handleTogglePlay}
-        />
+        {/* Mini player + tune toggle */}
+        <div className="shrink-0">
+          <MiniPlayer
+            isPlaying={wsConnected && status === '播放中'}
+            genre={genre}
+            analyser={analyserRef.current}
+            onTogglePlay={handleTogglePlay}
+          />
+          {/* Tune toggle button — only show when player is active */}
+          {(wsConnected || genre !== 'default') && (
+            <div className="flex justify-center -mt-1 mb-1">
+              <button
+                onClick={() => setShowTune(v => !v)}
+                className="text-[10px] text-white/30 hover:text-white/60 transition-all duration-300 flex items-center gap-1"
+                style={{ fontFamily: 'var(--font-body)' }}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                     className={`transition-transform duration-300 ${showTune ? 'rotate-180' : ''}`}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+                {showTune ? '收起微调' : '微调'}
+              </button>
+            </div>
+          )}
+          <TunePanel
+            brightness={tuneValues.brightness}
+            density={tuneValues.density}
+            bpm={tuneValues.bpm}
+            temperature={tuneValues.temperature}
+            onUpdate={handleTuneUpdate}
+            onShuffle={handleShuffle}
+            visible={showTune}
+          />
+        </div>
 
         {/* Input bar */}
         <div className="px-4 pb-4 pt-2">
