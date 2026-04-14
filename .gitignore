@@ -2,3 +2,8 @@ node_modules/
 .next/
 .env.local
 .vercel
+
+# Swift Package Manager build artifacts
+SimoneApp/.build/
+SimoneApp/*.xcodeproj/
+SimoneApp/*.xcworkspace/
