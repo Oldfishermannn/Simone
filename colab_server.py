@@ -12,12 +12,15 @@ import nest_asyncio
 nest_asyncio.apply()
 import websockets
 from magenta_rt import system, audio
-print('Loading model...')
-mrt = system.MagentaRT()
-print('Model loaded. Warmup...')
-style0 = mrt.embed_style('chill ambient music')
-c0, s0 = mrt.generate_chunk(style=style0)
-print(f'Warmup done. Chunk shape: {c0.samples.shape}')
+if 'mrt' not in dir() or mrt is None:
+    print('Loading model...')
+    mrt = system.MagentaRT()
+    print('Model loaded. Warmup...')
+    style0 = mrt.embed_style('chill ambient music')
+    c0, s0 = mrt.generate_chunk(style=style0)
+    print(f'Warmup done. Chunk shape: {c0.samples.shape}')
+else:
+    print('Model already loaded, skipping warmup.')
 style_cache = {}
 def get_style(t):
     if t not in style_cache:
