@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import pako from 'pako';
 import { SIMONE_SYSTEM_PROMPT } from './simone-prompt';
 import AmbientBackground from './components/AmbientBackground';
 // GenreCards removed — replaced by ElementPool as primary UI
 import MiniPlayer from './components/MiniPlayer';
 import ChatBubbles from './components/ChatBubbles';
 import ElementPool from './components/ElementPool';
-import { buildPromptsFromPool, inferGenreFromPool, getElementById } from './pool-elements';
+import { buildPromptsFromPool, inferGenreFromPool, getElementById, hasStyleSelected } from './pool-elements';
 
 // ─── Types ───
 interface Message {
@@ -58,7 +57,11 @@ export default function SimonePage() {
 
   // ─── Genre & Tag State ───
   const [genre, setGenre] = useState('default');
-  const [poolElements, setPoolElements] = useState<string[]>([]);
+  const [poolElements, setPoolElements] = useState<string[]>([]); // pending (user clicked)
+  const [confirmedElements, setConfirmedElements] = useState<string[]>([]); // confirmed (music changed)
+  const pendingElementsRef = useRef<string[]>([]); // for closure access
+  const styleChangeCountRef = useRef(0); // incremented on prompt send, used to detect first chunk after change
+  const awaitingConfirmRef = useRef(false); // true = waiting for first chunk after style change
   const poolDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -104,19 +107,6 @@ export default function SimonePage() {
     }
     return buffer;
   }, []);
-
-  // Delta+Gzip compressed decode
-  const decodeDgzToPCM = useCallback((b64Data: string): AudioBuffer | null => {
-    const compressed = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
-    const decompressed = pako.inflate(compressed);
-    const deltas = new Int16Array(decompressed.buffer);
-    // Undo delta encoding (cumulative sum with int16 wrapping)
-    for (let i = 1; i < deltas.length; i++) {
-      deltas[i] = (deltas[i] + deltas[i - 1]) & 0xFFFF;
-      if (deltas[i] > 32767) deltas[i] -= 65536;
-    }
-    return int16ToAudioBuffer(deltas);
-  }, [int16ToAudioBuffer]);
 
   const decodeBinaryToPCM = useCallback((data: ArrayBuffer): AudioBuffer | null => {
     return int16ToAudioBuffer(new Int16Array(data));
@@ -221,6 +211,16 @@ export default function SimonePage() {
 
     audioQueueRef.current.push(buffer);
 
+    // 风格确认：收到第一个新 chunk 时，把 pending 元素确认为 confirmed
+    if (awaitingConfirmRef.current) {
+      awaitingConfirmRef.current = false;
+      const pending = pendingElementsRef.current;
+      setConfirmedElements(pending);
+      // 背景也在确认时才变
+      const poolGenre = inferGenreFromPool(pending);
+      if (poolGenre) setGenre(poolGenre);
+    }
+
     // 播放决策：
     // - 首次启动 / 轮转后：预缓冲 N 个 chunk 再开始
     // - 已经播放过：来一个立即 schedule，靠已有的 scheduled-ahead 音频扛抖动
@@ -285,22 +285,8 @@ export default function SimonePage() {
         if (data.type === 'audio') {
           chunkCountRef.current++;
           setChunkCount(chunkCountRef.current);
-          if (data.enc === 'opus') {
-            // Opus/OGG compressed audio — decode via Web Audio API
-            const binary = Uint8Array.from(atob(data.data), c => c.charCodeAt(0));
-            const ctx = audioCtxRef.current;
-            if (ctx) {
-              ctx.decodeAudioData(binary.buffer.slice(0)).then(buf => {
-                playAudioChunk(buf);
-              }).catch(err => console.error('Opus decode error:', err));
-            }
-          } else if (data.enc === 'dgz') {
-            // Delta+Gzip compressed audio
-            const buf = decodeDgzToPCM(data.data);
-            if (buf) playAudioChunk(buf);
-          } else {
-            playAudioChunk(data.data);
-          }
+          // Lyria RealTime sends raw PCM as base64
+          playAudioChunk(data.data);
         } else if (data.type === 'status') {
           if (data.message === 'reconnecting') {
             // Server is rotating Lyria session — fade out, pre-buffer, then fade in
@@ -388,19 +374,21 @@ export default function SimonePage() {
     }
 
     if (update.config && Object.keys(update.config).length > 0) {
-      // Only send supported Magenta RT params
       const c = update.config as Record<string, number>;
-      const magentaConfig: Record<string, number> = {};
-      if (c.temperature != null) magentaConfig.temperature = c.temperature;
-      if (c.guidance_weight != null) magentaConfig.guidance_weight = c.guidance_weight;
-      if (Object.keys(magentaConfig).length > 0) {
-        const configJson = JSON.stringify(magentaConfig);
+      const lyriaConfig: Record<string, number> = {};
+      if (c.temperature != null) lyriaConfig.temperature = c.temperature;
+      if (c.guidance != null) lyriaConfig.guidance = c.guidance;
+      if (c.density != null) lyriaConfig.density = c.density;
+      if (c.brightness != null) lyriaConfig.brightness = c.brightness;
+      if (c.bpm != null) lyriaConfig.bpm = c.bpm;
+      if (Object.keys(lyriaConfig).length > 0) {
+        const configJson = JSON.stringify(lyriaConfig);
         if (configJson !== lastSentConfigRef.current) {
-          sendWs({ command: 'set_config', config: magentaConfig });
+          sendWs({ command: 'set_config', config: lyriaConfig });
           lastSentConfigRef.current = configJson;
         }
       }
-      setCurrentConfig(prev => ({ ...prev, ...magentaConfig }));
+      setCurrentConfig(prev => ({ ...prev, ...lyriaConfig }));
     }
 
     if (update.action) {
@@ -549,11 +537,13 @@ export default function SimonePage() {
       if (poolDebounceRef.current) clearTimeout(poolDebounceRef.current);
       poolDebounceRef.current = setTimeout(() => {
         if (next.length === 0) return;
+        if (!hasStyleSelected(next)) return; // 必须先选风格
         const prompts = buildPromptsFromPool(next);
         if (prompts.length === 0) return;
-        // Infer genre for background
-        const poolGenre = inferGenreFromPool(next);
-        if (poolGenre) setGenre(poolGenre);
+        // 标记等待确认 — 背景和 confirmed 状态在收到第一个 chunk 时才更新
+        pendingElementsRef.current = next;
+        awaitingConfirmRef.current = true;
+        styleChangeCountRef.current++;
         // Send prompts — connect first if needed
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           sendWs({ command: 'set_prompts', prompts });
@@ -719,6 +709,7 @@ export default function SimonePage() {
           {/* Element Pool — primary UI */}
           <ElementPool
             activeIds={poolElements}
+            confirmedIds={confirmedElements}
             onToggle={handlePoolToggle}
             visible={true}
           />

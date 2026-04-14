@@ -10,7 +10,7 @@ Simone 是一个温柔知性的音乐陪伴 Agent。用户跟她聊天，她用 
 
 - Next.js 16 (App Router) + TypeScript + Tailwind CSS 4
 - Claude Sonnet (对话 AI)
-- Google Lyria RealTime (实时音乐生成，通过 Python WS 桥接)
+- Google Lyria RealTime API (实时音乐生成，通过 Python WS 桥接，无需 GPU)
 - Web Audio API: PCM16 播放 + AnalyserNode 频谱分析
 - PWA: 可添加到主屏幕
 
@@ -28,7 +28,7 @@ npm run dev
 - **前端**: Next.js，全屏氛围背景 + 聊天界面 + 迷你播放器
 - **对话 API**: `/api/chat` → Claude Sonnet
 - **音乐**: 浏览器 WS → Python 桥接服务 → Lyria RealTime API
-- **部署**: Vercel (前端) + Render.com (WS 桥接)
+- **部署**: Vercel (前端) + Colab/任意服务器 (WS 桥接，无需 GPU)
 
 ## 关键路径
 
@@ -36,7 +36,7 @@ npm run dev
 - `src/app/simone-prompt.ts` — Simone 人设 system prompt
 - `src/app/api/chat/route.ts` — Claude 对话 API
 - `src/app/components/` — UI 组件（背景、聊天、播放器、风格卡片）
-- `server.py` — Python WS 桥接服务（Lyria RealTime）
+- `colab_server.py` — Python WS 桥接服务（Lyria RealTime API，无需 GPU）
 
 ## 命令
 

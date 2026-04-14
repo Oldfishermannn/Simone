@@ -1,2 +1,3 @@
 google-genai
-aiohttp
+websockets
+nest_asyncio
