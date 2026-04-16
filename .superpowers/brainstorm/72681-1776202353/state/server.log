@@ -1,0 +1,10 @@
+{"type":"server-started","port":56926,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:56926","screen_dir":"/Users/oldfisherman/Desktop/simone/.superpowers/brainstorm/72681-1776202353/content","state_dir":"/Users/oldfisherman/Desktop/simone/.superpowers/brainstorm/72681-1776202353/state"}
+{"type":"screen-added","file":"/Users/oldfisherman/Desktop/simone/.superpowers/brainstorm/72681-1776202353/content/product-overview.html"}
+{"type":"screen-added","file":"/Users/oldfisherman/Desktop/simone/.superpowers/brainstorm/72681-1776202353/content/popover-designs.html"}
+{"type":"screen-added","file":"/Users/oldfisherman/Desktop/simone/.superpowers/brainstorm/72681-1776202353/content/popover-v2.html"}
+{"type":"screen-added","file":"/Users/oldfisherman/Desktop/simone/.superpowers/brainstorm/72681-1776202353/content/volume-focused.html"}
+{"type":"screen-added","file":"/Users/oldfisherman/Desktop/simone/.superpowers/brainstorm/72681-1776202353/content/spectrum-hero.html"}
+{"type":"screen-added","file":"/Users/oldfisherman/Desktop/simone/.superpowers/brainstorm/72681-1776202353/content/spectrum-v2.html"}
+{"type":"screen-added","file":"/Users/oldfisherman/Desktop/simone/.superpowers/brainstorm/72681-1776202353/content/waiting.html"}
+{"type":"screen-added","file":"/Users/oldfisherman/Desktop/simone/.superpowers/brainstorm/72681-1776202353/content/spectrum-v3.html"}
+{"type":"server-stopped","reason":"idle timeout"}

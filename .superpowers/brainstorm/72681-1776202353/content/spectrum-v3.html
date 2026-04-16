@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #2a2a2e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    color: #d4cfc8;
+    cursor: none;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .cursor {
+    width: 20px; height: 20px;
+    border: 1.5px solid rgba(190,180,168,0.6);
+    border-radius: 50%;
+    position: fixed; pointer-events: none; z-index: 9999;
+    transition: transform 0.15s ease, border-color 0.3s;
+    mix-blend-mode: difference;
+  }
+  .cursor-dot {
+    width: 4px; height: 4px;
+    background: rgba(190,180,168,0.8);
+    border-radius: 50%;
+    position: fixed; pointer-events: none; z-index: 9999;
+  }
+  .cursor.hovering { transform: scale(2); border-color: rgba(201,175,155,0.8); }
+
+  .popover {
+    width: 360px;
+    background: linear-gradient(165deg, rgba(58,56,53,0.95), rgba(42,42,46,0.98));
+    border-radius: 24px;
+    border: 1px solid rgba(240,236,228,0.08);
+    backdrop-filter: blur(40px);
+    box-shadow: 0 24px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03) inset, 0 1px 0 rgba(255,255,255,0.06) inset;
+    overflow: hidden; position: relative;
+  }
+  .popover::before {
+    content: ''; position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 1; border-radius: 24px;
+  }
+  .popover > * { position: relative; z-index: 2; }
+
+  .scene-panel {
+    padding: 20px 20px 16px;
+    background: rgba(240,236,228,0.06);
+    border-bottom: 1px solid rgba(240,236,228,0.08);
+  }
+  .pill-row { display: flex; gap: 7px; justify-content: center; margin-bottom: 6px; }
+  .pill-row:last-child { margin-bottom: 0; }
+  .pill-label {
+    font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+    opacity: 0.25; width: 44px; text-align: right; padding-top: 8px; flex-shrink: 0;
+  }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill {
+    padding: 6px 14px; border-radius: 20px; font-size: 11px; letter-spacing: 0.3px;
+    border: 1px solid rgba(240,236,228,0.08); background: rgba(240,236,228,0.04);
+    cursor: none; transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .pill:hover { background: rgba(240,236,228,0.08); border-color: rgba(240,236,228,0.15); transform: scale(1.05); }
+  .pill.active { background: rgba(196,166,157,0.2); border-color: rgba(196,166,157,0.4); color: #c4a69d; transform: scale(1.08); }
+
+  /* Spectrum carousel */
+  .spectrum-area {
+    height: 220px; position: relative; overflow: hidden;
+    cursor: grab;
+  }
+  .spectrum-area:active { cursor: grabbing; }
+  .spectrum-carousel {
+    display: flex; height: 100%;
+    /* Spring physics applied via JS */
+  }
+  .spectrum-slide {
+    min-width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+
+  /* Style indicator dots */
+  .style-dots {
+    display: flex; justify-content: center; gap: 8px;
+    padding: 8px 0 4px;
+  }
+  .style-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(240,236,228,0.15);
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: none;
+  }
+  .style-dot.active { background: #c4a69d; transform: scale(1.5); }
+  .style-label {
+    text-align: center; font-size: 10px; opacity: 0.3;
+    letter-spacing: 1px; padding-bottom: 8px;
+    transition: opacity 0.3s;
+  }
+
+  /* Expand section */
+  .expandable { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s; }
+  .expandable.open { max-height: 200px; opacity: 1; }
+  .expand-content { padding: 0 20px 16px; }
+  .expand-toggle {
+    text-align: center; padding: 2px 0 10px;
+    font-size: 10px; opacity: 0.2; letter-spacing: 1px;
+    cursor: none; transition: opacity 0.3s;
+  }
+  .expand-toggle:hover { opacity: 0.5; }
+
+  .volume-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+  .volume-icon { font-size: 13px; opacity: 0.3; }
+  .volume-track { flex: 1; height: 4px; background: rgba(240,236,228,0.08); border-radius: 2px; position: relative; }
+  .volume-fill { height: 100%; width: 65%; background: linear-gradient(90deg, #c4a69d, #b5a0b5); border-radius: 2px; }
+  .volume-thumb { position: absolute; left: calc(65% - 6px); top: -4px; width: 12px; height: 12px; border-radius: 50%; background: #e0dbd4; box-shadow: 0 0 8px rgba(196,166,157,0.5); }
+
+  .info-panel {
+    margin: 8px 20px 20px; padding: 16px 20px;
+    background: rgba(240,236,228,0.06); border: 1px solid rgba(240,236,228,0.08);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .info-panel:hover { background: rgba(240,236,228,0.09); transform: scale(1.01); }
+  .play-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, #c4a69d, #b5a0b5);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: #3a3835;
+    box-shadow: 0 4px 16px rgba(196,166,157,0.3);
+    cursor: none;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+  }
+  .play-btn:hover { transform: scale(1.12); box-shadow: 0 6px 24px rgba(196,166,157,0.5); }
+  .play-btn:active { transform: scale(0.95); }
+
+  .scene-name { font-size: 15px; font-weight: 500; letter-spacing: 0.5px; color: #e0dbd4; }
+  .scene-desc { font-size: 11px; opacity: 0.35; letter-spacing: 0.3px; margin-top: 2px; }
+
+  /* Canvas styles */
+  canvas { display: block; }
+
+  .swipe-hint {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; opacity: 0.15; letter-spacing: 1px; white-space: nowrap;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-dot" id="cursorDot"></div>
+
+<div class="popover">
+  <div class="scene-panel">
+    <div class="pill-row">
+      <div class="pill-label">scene</div>
+      <div class="pills" id="scenePills">
+        <div class="pill active">Study</div>
+        <div class="pill">Drive</div>
+        <div class="pill">Workout</div>
+        <div class="pill">Cook</div>
+        <div class="pill">Date</div>
+        <div class="pill">Chill</div>
+      </div>
+    </div>
+    <div class="pill-row">
+      <div class="pill-label">style</div>
+      <div class="pills" id="stylePills">
+        <div class="pill">Jazz</div>
+        <div class="pill">Lo-fi</div>
+        <div class="pill">Ambient</div>
+        <div class="pill">Funk</div>
+        <div class="pill">Bossa</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="spectrum-area" id="spectrumArea">
+    <div class="spectrum-carousel" id="carousel">
+      <div class="spectrum-slide"><canvas id="canvas0"></canvas></div>
+      <div class="spectrum-slide"><canvas id="canvas1"></canvas></div>
+      <div class="spectrum-slide"><canvas id="canvas2"></canvas></div>
+      <div class="spectrum-slide"><canvas id="canvas3"></canvas></div>
+      <div class="spectrum-slide"><canvas id="canvas4"></canvas></div>
+    </div>
+    <div class="swipe-hint" id="swipeHint">&#x2190; swipe to change visualizer &#x2192;</div>
+  </div>
+
+  <div class="style-dots" id="styleDots">
+    <div class="style-dot active"></div>
+    <div class="style-dot"></div>
+    <div class="style-dot"></div>
+    <div class="style-dot"></div>
+    <div class="style-dot"></div>
+  </div>
+  <div class="style-label" id="styleLabel">Fountain</div>
+
+  <div class="expand-toggle" id="expandToggle" onclick="toggleExpand()">details</div>
+  <div class="expandable" id="expandCard">
+    <div class="expand-content">
+      <div class="volume-row">
+        <span class="volume-icon">&#x1f507;</span>
+        <div class="volume-track"><div class="volume-fill"></div><div class="volume-thumb"></div></div>
+        <span class="volume-icon">&#x1f50a;</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-panel">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div class="play-btn" id="playBtn">&#x23f8;</div>
+      <div>
+        <div class="scene-name" id="sceneName">Study</div>
+        <div class="scene-desc" id="sceneDesc">Lo-fi ambient piano</div>
+      </div>
+    </div>
+    <div style="font-size: 20px; opacity: 0.12;">&#x266b;</div>
+  </div>
+</div>
+
+<script>
+// --- Cursor ---
+const cursorEl = document.getElementById('cursor');
+const dotEl = document.getElementById('cursorDot');
+let cx=0,cy=0,dx=0,dy=0;
+document.addEventListener('mousemove', e => {
+  dx=e.clientX; dy=e.clientY;
+  dotEl.style.left=(dx-2)+'px'; dotEl.style.top=(dy-2)+'px';
+});
+(function aCursor(){cx+=(dx-cx)*0.12;cy+=(dy-cy)*0.12;cursorEl.style.left=(cx-10)+'px';cursorEl.style.top=(cy-10)+'px';requestAnimationFrame(aCursor)})();
+document.querySelectorAll('.pill,.play-btn,.expand-toggle,.style-dot').forEach(el=>{
+  el.addEventListener('mouseenter',()=>cursorEl.classList.add('hovering'));
+  el.addEventListener('mouseleave',()=>cursorEl.classList.remove('hovering'));
+});
+
+// --- Morandi colors ---
+const MC = {
+  rose: [196,166,157], mauve: [181,160,181], sage: [163,171,143],
+  blue: [142,154,175], sand: [201,191,170], stone: [154,149,144]
+};
+const mcArr = [MC.rose, MC.mauve, MC.sage, MC.blue, MC.sand];
+function mcRgba(c,a){ return 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'; }
+
+// --- Spectrum data (shared) ---
+const BARS = 32;
+const freqData = new Float32Array(BARS);
+const baseH = Array.from({length:BARS},()=>0.15+Math.random()*0.35);
+const spd = Array.from({length:BARS},()=>0.4+Math.random()*2.5);
+const phase = Array.from({length:BARS},()=>Math.random()*Math.PI*2);
+
+function updateFreq(t){
+  for(let i=0;i<BARS;i++){
+    const w1=Math.sin(t*spd[i]+phase[i]);
+    const w2=Math.sin(t*spd[i]*0.6+phase[i]*1.5);
+    const w3=Math.sin(t*0.3+i*0.2);
+    freqData[i]=Math.max(0.05, Math.min(1, baseH[i]+w1*0.25+w2*0.15+w3*0.08));
+  }
+}
+
+// --- Canvas setup ---
+const DPR = window.devicePixelRatio || 1;
+const canvases = [0,1,2,3,4].map(i=>document.getElementById('canvas'+i));
+const ctxs = canvases.map(c=>{
+  c.width=360*DPR; c.height=220*DPR;
+  c.style.width='360px'; c.style.height='220px';
+  const ctx=c.getContext('2d'); ctx.scale(DPR,DPR); return ctx;
+});
+
+const vizNames = ['Fountain','Aurora','Vinyl','Silk Wave','Constellation'];
+
+// --- Viz 0: Fountain (bars + arch + reflection) ---
+function drawFountain(ctx,t){
+  const W=360,H=220;
+  ctx.clearRect(0,0,W,H);
+  const archX=30, archW=W-60, archH=32;
+  // Arch
+  ctx.beginPath();
+  ctx.ellipse(W/2, archH+20, archW/2, archH, 0, Math.PI, 0);
+  ctx.strokeStyle='rgba(240,236,228,0.06)'; ctx.lineWidth=1; ctx.stroke();
+  // Bars
+  const barW=6, gap=5, totalW=BARS*(barW+gap)-gap;
+  const startX=(W-totalW)/2;
+  const baseY=H*0.72;
+  for(let i=0;i<BARS;i++){
+    const x=startX+i*(barW+gap);
+    const h=freqData[i]*120;
+    const ci=mcArr[i%mcArr.length];
+    const grad=ctx.createLinearGradient(x,baseY,x,baseY-h);
+    grad.addColorStop(0,mcRgba(ci,0.9));
+    grad.addColorStop(1,mcRgba(ci,0.2));
+    ctx.fillStyle=grad;
+    ctx.beginPath(); ctx.roundRect(x,baseY-h,barW,h,[3,3,1,1]); ctx.fill();
+    // Glow
+    ctx.shadowColor=mcRgba(ci,0.4); ctx.shadowBlur=8;
+    ctx.fillRect(x,baseY-h,barW,2); ctx.shadowBlur=0;
+  }
+  // Pool line
+  const poolGrad=ctx.createLinearGradient(0,0,W,0);
+  poolGrad.addColorStop(0,'transparent');
+  poolGrad.addColorStop(0.3,mcRgba(MC.rose,0.2));
+  poolGrad.addColorStop(0.7,mcRgba(MC.mauve,0.2));
+  poolGrad.addColorStop(1,'transparent');
+  ctx.fillStyle=poolGrad; ctx.fillRect(archX,baseY+1,archW,1);
+  // Reflection
+  ctx.save(); ctx.globalAlpha=0.06;
+  ctx.translate(0,baseY*2+4); ctx.scale(1,-1);
+  for(let i=0;i<BARS;i++){
+    const x=startX+i*(barW+gap);
+    const h=freqData[i]*60;
+    ctx.fillStyle=mcRgba(mcArr[i%mcArr.length],0.8);
+    ctx.fillRect(x,baseY-h,barW,h);
+  }
+  ctx.restore();
+}
+
+// --- Viz 1: Aurora (smooth flowing waves) ---
+function drawAurora(ctx,t){
+  const W=360,H=220;
+  ctx.clearRect(0,0,W,H);
+  const layers=[MC.mauve,MC.sage,MC.blue,MC.rose];
+  layers.forEach((c,li)=>{
+    ctx.beginPath();
+    ctx.moveTo(0,H);
+    for(let x=0;x<=W;x+=3){
+      const fi=Math.floor((x/W)*BARS);
+      const frac=(x/W)*BARS-fi;
+      const v1=freqData[Math.min(fi,BARS-1)];
+      const v2=freqData[Math.min(fi+1,BARS-1)];
+      const v=v1+(v2-v1)*frac;
+      const baseY=H*0.75-li*18;
+      const y=baseY-v*80-Math.sin(x*0.015+t*0.8+li*1.2)*15;
+      ctx.lineTo(x,y);
+    }
+    ctx.lineTo(W,H); ctx.closePath();
+    const grad=ctx.createLinearGradient(0,H*0.2,0,H);
+    grad.addColorStop(0,mcRgba(c,0.3-li*0.05));
+    grad.addColorStop(1,mcRgba(c,0.02));
+    ctx.fillStyle=grad; ctx.fill();
+    // Top edge glow
+    ctx.strokeStyle=mcRgba(c,0.2); ctx.lineWidth=1.5;
+    ctx.beginPath();
+    for(let x=0;x<=W;x+=3){
+      const fi=Math.floor((x/W)*BARS);
+      const frac=(x/W)*BARS-fi;
+      const v1=freqData[Math.min(fi,BARS-1)];
+      const v2=freqData[Math.min(fi+1,BARS-1)];
+      const v=v1+(v2-v1)*frac;
+      const baseY=H*0.75-li*18;
+      const y=baseY-v*80-Math.sin(x*0.015+t*0.8+li*1.2)*15;
+      if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  });
+}
+
+// --- Viz 2: Vinyl (circular bars radiating from center) ---
+function drawVinyl(ctx,t){
+  const W=360,H=220, cx=W/2, cy=H/2;
+  ctx.clearRect(0,0,W,H);
+  // Grooves
+  for(let r=20;r<80;r+=8){
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.strokeStyle='rgba(240,236,228,0.03)'; ctx.lineWidth=0.5; ctx.stroke();
+  }
+  // Radial bars
+  const innerR=28, outerR=95;
+  for(let i=0;i<BARS;i++){
+    const angle=(i/BARS)*Math.PI*2-Math.PI/2+t*0.15;
+    const h=freqData[i];
+    const barLen=innerR+h*(outerR-innerR);
+    const x1=cx+Math.cos(angle)*innerR;
+    const y1=cy+Math.sin(angle)*innerR;
+    const x2=cx+Math.cos(angle)*barLen;
+    const y2=cy+Math.sin(angle)*barLen;
+    const ci=mcArr[i%mcArr.length];
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+    ctx.strokeStyle=mcRgba(ci,0.5+h*0.5);
+    ctx.lineWidth=3; ctx.lineCap='round'; ctx.stroke();
+    // Tip glow
+    ctx.beginPath(); ctx.arc(x2,y2,2+h*3,0,Math.PI*2);
+    ctx.fillStyle=mcRgba(ci,0.3); ctx.fill();
+  }
+  // Center circle
+  const cGrad=ctx.createRadialGradient(cx,cy,5,cx,cy,24);
+  cGrad.addColorStop(0,mcRgba(MC.rose,0.3));
+  cGrad.addColorStop(1,'transparent');
+  ctx.fillStyle=cGrad; ctx.beginPath(); ctx.arc(cx,cy,24,0,Math.PI*2); ctx.fill();
+  // Label
+  ctx.beginPath(); ctx.arc(cx,cy,10,0,Math.PI*2);
+  ctx.fillStyle=mcRgba(MC.rose,0.5); ctx.fill();
+}
+
+// --- Viz 3: Silk Wave (single flowing ribbon) ---
+function drawSilk(ctx,t){
+  const W=360,H=220;
+  ctx.clearRect(0,0,W,H);
+  const ribbons=[{c:MC.rose,off:0},{c:MC.mauve,off:0.3},{c:MC.sage,off:0.6}];
+  ribbons.forEach(r=>{
+    const pts=[];
+    for(let x=0;x<=W;x+=2){
+      const fi=Math.floor((x/W)*BARS);
+      const v=freqData[Math.min(fi,BARS-1)];
+      const cy=H/2+Math.sin(x*0.02+t*1.2+r.off*5)*30*v
+        +Math.sin(x*0.008+t*0.5+r.off*3)*20;
+      pts.push({x,y:cy});
+    }
+    // Thick ribbon
+    ctx.beginPath();
+    pts.forEach((p,i)=>{
+      const thick=8+freqData[Math.min(Math.floor((p.x/W)*BARS),BARS-1)]*25;
+      if(i===0){ctx.moveTo(p.x,p.y-thick/2);}
+      else{ctx.lineTo(p.x,p.y-thick/2);}
+    });
+    for(let i=pts.length-1;i>=0;i--){
+      const p=pts[i];
+      const thick=8+freqData[Math.min(Math.floor((p.x/W)*BARS),BARS-1)]*25;
+      ctx.lineTo(p.x,p.y+thick/2);
+    }
+    ctx.closePath();
+    const grad=ctx.createLinearGradient(0,0,W,0);
+    grad.addColorStop(0,mcRgba(r.c,0.05));
+    grad.addColorStop(0.3,mcRgba(r.c,0.3));
+    grad.addColorStop(0.7,mcRgba(r.c,0.3));
+    grad.addColorStop(1,mcRgba(r.c,0.05));
+    ctx.fillStyle=grad; ctx.fill();
+    // Edge line
+    ctx.beginPath(); pts.forEach((p,i)=>{if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);});
+    ctx.strokeStyle=mcRgba(r.c,0.4); ctx.lineWidth=1; ctx.stroke();
+  });
+}
+
+// --- Viz 4: Constellation (particles + connections) ---
+const stars = Array.from({length:40},()=>({
+  x:Math.random()*360, y:Math.random()*220,
+  vx:(Math.random()-0.5)*0.3, vy:(Math.random()-0.5)*0.3,
+  freq:Math.floor(Math.random()*BARS), ci:Math.floor(Math.random()*5)
+}));
+function drawConstellation(ctx,t){
+  const W=360,H=220;
+  ctx.clearRect(0,0,W,H);
+  stars.forEach(s=>{
+    const v=freqData[s.freq];
+    s.x+=s.vx*(1+v*2); s.y+=s.vy*(1+v*2);
+    if(s.x<0)s.x=W; if(s.x>W)s.x=0;
+    if(s.y<0)s.y=H; if(s.y>H)s.y=0;
+    const r=2+v*5;
+    const c=mcArr[s.ci];
+    ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2);
+    ctx.fillStyle=mcRgba(c,0.3+v*0.5); ctx.fill();
+    // Glow
+    const gGrad=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,r*3);
+    gGrad.addColorStop(0,mcRgba(c,0.15));
+    gGrad.addColorStop(1,'transparent');
+    ctx.fillStyle=gGrad; ctx.beginPath(); ctx.arc(s.x,s.y,r*3,0,Math.PI*2); ctx.fill();
+  });
+  // Connections
+  for(let i=0;i<stars.length;i++){
+    for(let j=i+1;j<stars.length;j++){
+      const dx=stars[i].x-stars[j].x, dy=stars[i].y-stars[j].y;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<80){
+        const v=Math.max(freqData[stars[i].freq],freqData[stars[j].freq]);
+        ctx.beginPath(); ctx.moveTo(stars[i].x,stars[i].y);
+        ctx.lineTo(stars[j].x,stars[j].y);
+        ctx.strokeStyle=mcRgba(MC.sand,0.05+v*0.1*(1-d/80));
+        ctx.lineWidth=0.5+v; ctx.stroke();
+      }
+    }
+  }
+}
+
+const drawFns = [drawFountain, drawAurora, drawVinyl, drawSilk, drawConstellation];
+
+// --- Animation loop ---
+function animate(){
+  const t=Date.now()/1000;
+  updateFreq(t);
+  drawFns.forEach((fn,i)=>fn(ctxs[i],t));
+  requestAnimationFrame(animate);
+}
+animate();
+
+// --- Spring physics carousel ---
+const carousel = document.getElementById('carousel');
+const area = document.getElementById('spectrumArea');
+let currentSlide=0, targetX=0, currentX=0, velocity=0;
+let dragging=false, dragStartX=0, dragStartOffset=0;
+
+const SPRING=0.08, DAMPING=0.75, SNAP_THRESHOLD=50;
+const slideW=360;
+
+function springAnimate(){
+  if(!dragging){
+    targetX=-currentSlide*slideW;
+    const dx=targetX-currentX;
+    velocity+=dx*SPRING;
+    velocity*=DAMPING;
+    currentX+=velocity;
+    if(Math.abs(velocity)<0.01 && Math.abs(dx)<0.1){currentX=targetX;velocity=0;}
+  }
+  carousel.style.transform='translateX('+currentX+'px)';
+  requestAnimationFrame(springAnimate);
+}
+springAnimate();
+
+area.addEventListener('mousedown',e=>{
+  dragging=true; dragStartX=e.clientX; dragStartOffset=currentX; velocity=0;
+});
+document.addEventListener('mousemove',e=>{
+  if(!dragging)return;
+  currentX=dragStartOffset+(e.clientX-dragStartX);
+});
+document.addEventListener('mouseup',e=>{
+  if(!dragging)return;
+  dragging=false;
+  const moved=e.clientX-dragStartX;
+  if(Math.abs(moved)>SNAP_THRESHOLD){
+    if(moved<0 && currentSlide<4) currentSlide++;
+    else if(moved>0 && currentSlide>0) currentSlide--;
+  }
+  updateDots();
+});
+
+// Touch support
+area.addEventListener('touchstart',e=>{
+  dragging=true; dragStartX=e.touches[0].clientX; dragStartOffset=currentX; velocity=0;
+},{passive:true});
+document.addEventListener('touchmove',e=>{
+  if(!dragging)return;
+  currentX=dragStartOffset+(e.touches[0].clientX-dragStartX);
+},{passive:true});
+document.addEventListener('touchend',e=>{
+  if(!dragging)return;
+  dragging=false;
+  const moved=e.changedTouches[0].clientX-dragStartX;
+  if(Math.abs(moved)>SNAP_THRESHOLD){
+    if(moved<0 && currentSlide<4) currentSlide++;
+    else if(moved>0 && currentSlide>0) currentSlide--;
+  }
+  updateDots();
+});
+
+function updateDots(){
+  document.querySelectorAll('.style-dot').forEach((d,i)=>{
+    d.classList.toggle('active',i===currentSlide);
+  });
+  document.getElementById('styleLabel').textContent=vizNames[currentSlide];
+  // Hide swipe hint after first swipe
+  document.getElementById('swipeHint').style.opacity='0';
+}
+
+document.querySelectorAll('.style-dot').forEach((d,i)=>{
+  d.addEventListener('click',()=>{currentSlide=i;updateDots();});
+});
+
+// --- Pills ---
+document.querySelectorAll('#scenePills .pill').forEach(pill=>{
+  pill.addEventListener('click',()=>{
+    document.querySelectorAll('#scenePills .pill').forEach(p=>p.classList.remove('active'));
+    pill.classList.add('active');
+    document.getElementById('sceneName').textContent=pill.textContent;
+  });
+});
+document.querySelectorAll('#stylePills .pill').forEach(pill=>{
+  pill.addEventListener('click',()=>{
+    document.querySelectorAll('#stylePills .pill').forEach(p=>p.classList.remove('active'));
+    pill.classList.add('active');
+    const scene=document.querySelector('#scenePills .pill.active');
+    document.getElementById('sceneDesc').textContent=pill.textContent+(scene?' + '+scene.textContent:'');
+  });
+});
+
+// --- Expand ---
+function toggleExpand(){
+  const card=document.getElementById('expandCard');
+  card.classList.toggle('open');
+  document.getElementById('expandToggle').textContent=card.classList.contains('open')?'hide':'details';
+}
+</script>
+</body>
+</html>

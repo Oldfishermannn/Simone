@@ -1,0 +1,36 @@
+name: Simone
+options:
+  bundleIdPrefix: com.simone
+  deploymentTarget:
+    macOS: "14.0"
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+targets:
+  Simone:
+    type: application
+    platform: macOS
+    sources:
+      - path: Simone
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.simone.app
+        PRODUCT_NAME: Simone
+        INFOPLIST_KEY_LSUIElement: true
+        GENERATE_INFOPLIST_FILE: true
+        SWIFT_VERSION: "5.9"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+    entitlements:
+      path: Simone/Simone.entitlements
+      properties:
+        com.apple.security.network.client: true
+        com.apple.security.app-sandbox: false
+  SimoneTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: SimoneTests
+    dependencies:
+      - target: Simone
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true

@@ -1,9 +1,19 @@
+# macOS
+.DS_Store
+
+# 独立子仓库（simone ios 有自己的 git repo: simone_ios_appstore.git）
+simone ios/
+
+# 构建产物
 node_modules/
 .next/
 .env.local
 .vercel
+build/
+.build/
 
-# Swift Package Manager build artifacts
-SimoneApp/.build/
-SimoneApp/*.xcodeproj/
-SimoneApp/*.xcworkspace/
+# iOS
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+_archive/Simone_ios_old/

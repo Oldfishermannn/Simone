@@ -1,0 +1,150 @@
+<h2>Menu Bar Popover Design</h2>
+<p class="subtitle">Click the menu bar icon, see this popover. Which direction feels right?</p>
+
+<div class="cards">
+
+  <!-- Design A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: #0d0d1a; border-radius: 12px; padding: 20px; width: 280px; margin: 0 auto; font-family: -apple-system, sans-serif; color: #ede9e3;">
+        <!-- Status bar preview -->
+        <div style="text-align: center; font-size: 11px; opacity: 0.4; margin-bottom: 12px;">&#x266b; Simone</div>
+
+        <!-- Now playing -->
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #c9a0dc, #e8b4b8); margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; font-size: 20px;">&#x25b6;</div>
+          <div style="font-size: 13px; opacity: 0.6;">Chill Jazz Piano</div>
+          <div style="display: flex; justify-content: center; gap: 4px; margin-top: 8px;">
+            <div style="width: 3px; height: 12px; background: #c9a0dc; border-radius: 2px; opacity: 0.6;"></div>
+            <div style="width: 3px; height: 18px; background: #c9a0dc; border-radius: 2px; opacity: 0.8;"></div>
+            <div style="width: 3px; height: 8px; background: #c9a0dc; border-radius: 2px; opacity: 0.5;"></div>
+            <div style="width: 3px; height: 22px; background: #c9a0dc; border-radius: 2px;"></div>
+            <div style="width: 3px; height: 14px; background: #c9a0dc; border-radius: 2px; opacity: 0.7;"></div>
+            <div style="width: 3px; height: 10px; background: #c9a0dc; border-radius: 2px; opacity: 0.5;"></div>
+            <div style="width: 3px; height: 16px; background: #c9a0dc; border-radius: 2px; opacity: 0.8;"></div>
+          </div>
+        </div>
+
+        <!-- Scene grid -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+          <div style="text-align: center; padding: 12px 4px; background: rgba(201,160,220,0.2); border: 1px solid rgba(201,160,220,0.4); border-radius: 10px; font-size: 20px;">&#x1f4d6;<div style="font-size: 10px; margin-top: 4px;">Study</div></div>
+          <div style="text-align: center; padding: 12px 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; font-size: 20px;">&#x1f697;<div style="font-size: 10px; margin-top: 4px;">Drive</div></div>
+          <div style="text-align: center; padding: 12px 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; font-size: 20px;">&#x1f3cb;<div style="font-size: 10px; margin-top: 4px;">Workout</div></div>
+          <div style="text-align: center; padding: 12px 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; font-size: 20px;">&#x1f373;<div style="font-size: 10px; margin-top: 4px;">Cook</div></div>
+          <div style="text-align: center; padding: 12px 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; font-size: 20px;">&#x1f377;<div style="font-size: 10px; margin-top: 4px;">Date</div></div>
+          <div style="text-align: center; padding: 12px 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; font-size: 20px;">&#x1f37b;<div style="font-size: 10px; margin-top: 4px;">Drinks</div></div>
+        </div>
+
+        <!-- Energy slider -->
+        <div style="margin-top: 16px; padding: 0 4px;">
+          <div style="display: flex; justify-content: space-between; font-size: 10px; opacity: 0.4; margin-bottom: 4px;">
+            <span>Calm</span><span>Energy</span><span>Hype</span>
+          </div>
+          <div style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; position: relative;">
+            <div style="position: absolute; left: 35%; top: -4px; width: 12px; height: 12px; background: #c9a0dc; border-radius: 50%;"></div>
+            <div style="width: 35%; height: 100%; background: linear-gradient(90deg, #c9a0dc, #e8b4b8); border-radius: 2px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A: Grid + Slider</h3>
+      <p>Scene grid at center, energy slider at bottom. Classic, clear, functional.</p>
+    </div>
+  </div>
+
+  <!-- Design B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: #0d0d1a; border-radius: 12px; padding: 20px; width: 280px; margin: 0 auto; font-family: -apple-system, sans-serif; color: #ede9e3;">
+        <!-- Status bar preview -->
+        <div style="text-align: center; font-size: 11px; opacity: 0.4; margin-bottom: 12px;">&#x266b; Simone</div>
+
+        <!-- Large scene card - currently playing -->
+        <div style="background: linear-gradient(135deg, rgba(201,160,220,0.3), rgba(30,30,60,0.8)); border-radius: 16px; padding: 24px; margin-bottom: 12px; text-align: center; position: relative; overflow: hidden;">
+          <div style="font-size: 40px; margin-bottom: 8px;">&#x1f4d6;</div>
+          <div style="font-size: 18px; font-weight: 600;">Study</div>
+          <div style="font-size: 12px; opacity: 0.6; margin-top: 4px;">Lo-fi ambient with soft piano</div>
+          <!-- Mini spectrum -->
+          <div style="display: flex; justify-content: center; gap: 3px; margin-top: 12px; height: 20px; align-items: flex-end;">
+            <div style="width: 2px; height: 8px; background: #c9a0dc; border-radius: 1px; opacity: 0.6;"></div>
+            <div style="width: 2px; height: 14px; background: #c9a0dc; border-radius: 1px; opacity: 0.8;"></div>
+            <div style="width: 2px; height: 6px; background: #c9a0dc; border-radius: 1px; opacity: 0.5;"></div>
+            <div style="width: 2px; height: 18px; background: #c9a0dc; border-radius: 1px;"></div>
+            <div style="width: 2px; height: 10px; background: #c9a0dc; border-radius: 1px; opacity: 0.7;"></div>
+            <div style="width: 2px; height: 20px; background: #e8b4b8; border-radius: 1px;"></div>
+            <div style="width: 2px; height: 12px; background: #c9a0dc; border-radius: 1px; opacity: 0.6;"></div>
+            <div style="width: 2px; height: 6px; background: #c9a0dc; border-radius: 1px; opacity: 0.4;"></div>
+            <div style="width: 2px; height: 16px; background: #c9a0dc; border-radius: 1px; opacity: 0.8;"></div>
+          </div>
+          <!-- Play/pause overlay -->
+          <div style="position: absolute; right: 12px; top: 12px; width: 28px; height: 28px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px;">&#x23f8;</div>
+        </div>
+
+        <!-- Horizontal scroll scene pills -->
+        <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;">
+          <div style="flex-shrink: 0; padding: 8px 16px; background: rgba(201,160,220,0.2); border: 1px solid rgba(201,160,220,0.4); border-radius: 20px; font-size: 12px; white-space: nowrap;">&#x1f4d6; Study</div>
+          <div style="flex-shrink: 0; padding: 8px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; font-size: 12px; white-space: nowrap;">&#x1f697; Drive</div>
+          <div style="flex-shrink: 0; padding: 8px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; font-size: 12px; white-space: nowrap;">&#x1f3cb; Workout</div>
+          <div style="flex-shrink: 0; padding: 8px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; font-size: 12px; white-space: nowrap;">&#x1f373; Cook</div>
+          <div style="flex-shrink: 0; padding: 8px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; font-size: 12px; white-space: nowrap;">&#x1f377; Date</div>
+        </div>
+
+        <!-- Energy slider -->
+        <div style="margin-top: 14px; padding: 0 4px;">
+          <div style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; position: relative;">
+            <div style="position: absolute; left: 35%; top: -4px; width: 12px; height: 12px; background: #c9a0dc; border-radius: 50%;"></div>
+            <div style="width: 35%; height: 100%; background: linear-gradient(90deg, #c9a0dc, #e8b4b8); border-radius: 2px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B: Hero Card + Pills</h3>
+      <p>Big "now playing" card with scene context, horizontal scrollable scene pills below. More visual, more personality.</p>
+    </div>
+  </div>
+
+  <!-- Design C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background: #0d0d1a; border-radius: 12px; padding: 20px; width: 280px; margin: 0 auto; font-family: -apple-system, sans-serif; color: #ede9e3;">
+        <!-- Status bar preview -->
+        <div style="text-align: center; font-size: 11px; opacity: 0.4; margin-bottom: 12px;">&#x266b; Simone</div>
+
+        <!-- Minimal - just a big circle with scene -->
+        <div style="text-align: center; margin: 16px 0;">
+          <div style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, rgba(201,160,220,0.3), rgba(30,30,60,0.6)); border: 2px solid rgba(201,160,220,0.3); margin: 0 auto; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+            <div style="font-size: 32px;">&#x1f4d6;</div>
+            <div style="font-size: 10px; opacity: 0.7; margin-top: 2px;">Study</div>
+          </div>
+          <!-- Subtle ring animation hint -->
+          <div style="width: 116px; height: 116px; border-radius: 50%; border: 1px solid rgba(201,160,220,0.1); position: relative; top: -108px; margin: 0 auto -100px;"></div>
+        </div>
+
+        <!-- Swipe hint -->
+        <div style="text-align: center; font-size: 11px; opacity: 0.3; margin-bottom: 16px;">&#x2190; swipe to change scene &#x2192;</div>
+
+        <!-- Dots indicator -->
+        <div style="display: flex; justify-content: center; gap: 6px; margin-bottom: 16px;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #c9a0dc;"></div>
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2);"></div>
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2);"></div>
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2);"></div>
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2);"></div>
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2);"></div>
+        </div>
+
+        <!-- Play button -->
+        <div style="text-align: center;">
+          <div style="display: inline-flex; width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #c9a0dc, #e8b4b8); align-items: center; justify-content: center; font-size: 18px; color: #0d0d1a;">&#x25b6;</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C: Carousel</h3>
+      <p>One scene at a time, swipe to browse. Ultra minimal. Like a music box you spin.</p>
+    </div>
+  </div>
+
+</div>

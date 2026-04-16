@@ -1,45 +1,99 @@
 @AGENTS.md
 
-# Simone - AI Music Companion
+# Simone — AI Ambient Radio
 
 ## 项目概述
 
-Simone 是一个温柔知性的音乐陪伴 Agent。用户跟她聊天，她用 Google Lyria RealTime 实时生成适合当下氛围的器乐音乐。适用于学习、开车、派对、居家等场景。
+Simone 是一个 AI 实时音乐生成 iOS/Mac App。采用「氛围电台」定位：选台就完了，不是播放器而是电台。用 Google Lyria RealTime API 实时生成器乐音乐，用于学习、开车、派对、居家等场景。
+
+## 当前状态
+
+🎉 **2026-04-16 v1.0 成功上架 App Store**（全功能免费解锁版本）
+
+### v1.0 已完成
+- ✅ Phase 1-5 全部闭环（直连 Google API + UI 重设计 + App Store 上架）
+- ✅ 28 个可视化器实装 + BYOK + 内置 Key
+
+### v1.1 规划中（2026-04-16 起草，串行子版本发布）
+
+| 子版本 | 主题 | 核心抓手 |
+|---|---|---|
+| **v1.1.0** ⏳ | 稳定性 | 预加载伪实时 + 重连平滑 + NowPlaying 补齐 |
+| **v1.1.1** 📋 | 交互重塑 | 频谱=频道滑动切台 + 详情页横滑 + Evolve 改定时换台 |
+| **v1.1.2** 📋 | 音乐表现力 | Evolve 深度算法 + BPM UI + Smart Adapt + Slow Jam 推荐 |
+| **v1.1.3** 📋 | 平台集成 | 灵动岛/锁屏 artwork + 小组件 + API Key 加固 |
+| **v1.1.4** 📋 | 商业化 | StoreKit 2 + Flow/Tune/Studio 分层 + 前 100 名 50% off |
+
+完整 v1.1 计划见 `SimonePlan.md` 末尾章节。v2.0 延后：多风格混合、离线电台、导出、主题、Mac 版、iPad 适配、CloudKit 同步。
 
 ## 技术栈
 
-- Next.js 16 (App Router) + TypeScript + Tailwind CSS 4
-- Claude Sonnet (对话 AI)
-- Google Lyria RealTime API (实时音乐生成，通过 Python WS 桥接，无需 GPU)
-- Web Audio API: PCM16 播放 + AnalyserNode 频谱分析
-- PWA: 可添加到主屏幕
-
-## 环境配置
-
-```bash
-cp .env.local.example .env.local
-# 填入 ANTHROPIC_API_KEY 和 NEXT_PUBLIC_WS_URL
-npm install
-npm run dev
-```
+- **iOS/Mac**: SwiftUI + AVFoundation + Keychain
+- **实时音乐**: Google Gemini Live Music API（直连 WebSocket，零服务器）
+- **端点**: `wss://generativelanguage.googleapis.com/ws/...BidiGenerateMusic?key=KEY`
+- **模型**: `models/lyria-realtime-exp`
+- **音频格式**: PCM 16-bit, 48kHz, stereo
+- **API Key**: BYOK + 内置试用 Key（XOR 混淆 + 字节数组拆分）
+- **付费**: StoreKit 2（v1.0 占位，未接）
 
 ## 架构
 
-- **前端**: Next.js，全屏氛围背景 + 聊天界面 + 迷你播放器
-- **对话 API**: `/api/chat` → Claude Sonnet
-- **音乐**: 浏览器 WS → Python 桥接服务 → Lyria RealTime API
-- **部署**: Vercel (前端) + Colab/任意服务器 (WS 桥接，无需 GPU)
+```
+iPhone/Mac App
+  ├── 首次打开：内置 Key（XOR 混淆）免费试用
+  ├── 深度用户：设置里填自己的 Gemini API Key，无限使用
+  ├── 直连 Google Gemini Live Music API (WebSocket)
+  ├── Keychain 安全存储用户 API Key
+  └── 零服务器，零运维（Apple Developer $99/年）
+```
 
-## 关键路径
+## 目录结构
 
-- `src/app/page.tsx` — 主页面，状态管理 + 音频引擎 + UI
-- `src/app/simone-prompt.ts` — Simone 人设 system prompt
-- `src/app/api/chat/route.ts` — Claude 对话 API
-- `src/app/components/` — UI 组件（背景、聊天、播放器、风格卡片）
-- `colab_server.py` — Python WS 桥接服务（Lyria RealTime API，无需 GPU）
+```
+simone/
+├── simone ios/              # iOS v1.0 上架版（独立 git）
+│   └── Simone.xcodeproj
+├── simone mac/              # Mac 版源码
+│   └── Simone.xcodeproj
+├── SimonePlan.md            # 权威计划书（5 个 Phase + Phase 2.5/2.6）
+├── appstore-screenshots/    # App Store 上架截图素材
+├── docs/superpowers/        # 设计规划文档（plans + specs）
+├── _archive/                # 历史归档
+│   ├── colab-bridge/        # 老架构 Python 桥接服务器
+│   ├── web/                 # Next.js Web 原型
+│   ├── duplicate-project/   # SimoneApp 冗余副本
+│   └── Simone_ios_old/      # colab bridge 时代的 iOS 旧版
+└── CLAUDE.md
+```
 
-## 命令
+## 关键路径（iOS v1.0）
 
-- `npm run dev` — 开发服务器
-- `npm run build` — 生产构建
-- `npm run start` — 生产运行
+- `simone ios/Simone/Network/LyriaClient.swift` — 直连 Google WebSocket + 会话轮转
+- `simone ios/Simone/Network/KeychainHelper.swift` — Keychain CRUD
+- `simone ios/Simone/Network/APIKeyObfuscator.swift` — 内置 Key 混淆（防 strings 提取）
+- `simone ios/Simone/Network/PromptBuilder.swift` — Lyria 参数构建
+- `simone ios/Simone/Models/AppState.swift` — 状态中心 + 分类/演化/定时
+- `simone ios/Simone/Models/MusicStyle.swift` — MoodStyle + 20 预设
+- `simone ios/Simone/Models/StyleCategory.swift` — 10 分类枚举（Lo-fi/Jazz/Blues/R&B/Rock/Pop/Electronic/Classical/Ambient/Folk）
+- `simone ios/Simone/Views/ContentView.swift` — 4 页结构（沉浸/主页/频道/设置）
+- `simone ios/Simone/Views/SettingsView.swift` — 完整设置页
+- `simone ios/Simone/Views/APIKeySettingsView.swift` — BYOK 入口
+- `simone ios/Simone/Views/Visualizers/` — 18 可视化器
+
+## 产品定位（Phase 2.6 终稿）
+
+- **品牌**：Simone - AI Ambient Radio
+- **人格**：都市夜晚 + 温柔陪伴，外壳克制带一点梦感
+- **核心原则**：零引导，所有操作自解释
+- **默认频道**：Lo-fi Chill
+- **分层命名**：Flow（能听）/ Tune（能选）/ Studio（能造）
+- **Evolve**：不换台，只做当前风格内部微调（加减乐器、密度变化、轻微能量变化）
+
+## Bundle 信息
+
+- **iOS Bundle ID**: `com.simone.ios`
+- **Team ID**: `627M26D553`
+
+## 唤醒上下文
+
+打开项目前先读 `SimonePlan.md` 拿到完整计划书。iOS 版在 `simone ios/` 里有独立 git 历史（`V1.0 App Store ready` commit），和主 repo 的 git 独立。老架构代码（Python 桥接、Next.js 原型）都在 `_archive/`，不再使用。

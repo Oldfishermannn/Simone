@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #2a2a2e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    color: #d4cfc8;
+    cursor: none;
+  }
+
+  /* Custom cursor */
+  .cursor {
+    width: 20px; height: 20px;
+    border: 1.5px solid rgba(190,180,168,0.6);
+    border-radius: 50%;
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    transition: transform 0.15s ease, border-color 0.3s;
+    mix-blend-mode: difference;
+  }
+  .cursor-dot {
+    width: 4px; height: 4px;
+    background: rgba(190,180,168,0.8);
+    border-radius: 50%;
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+  }
+  .cursor.hovering {
+    transform: scale(2);
+    border-color: rgba(201,175,155,0.8);
+  }
+
+  .popover {
+    width: 340px;
+    background: linear-gradient(165deg, rgba(58,56,53,0.95), rgba(42,42,46,0.98));
+    border-radius: 24px;
+    border: 1px solid rgba(240,236,228,0.08);
+    backdrop-filter: blur(40px);
+    box-shadow:
+      0 24px 80px rgba(0,0,0,0.4),
+      0 0 0 1px rgba(255,255,255,0.03) inset,
+      0 1px 0 rgba(255,255,255,0.06) inset;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .scene-panel {
+    padding: 20px 20px 16px;
+    background: rgba(240,236,228,0.08);
+    border-bottom: 1px solid rgba(240,236,228,0.12);
+    backdrop-filter: blur(24px);
+  }
+  .scene-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .pill {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    border: 1px solid rgba(240,236,228,0.08);
+    background: rgba(240,236,228,0.04);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: none;
+  }
+  .pill:hover {
+    background: rgba(240,236,228,0.08);
+    border-color: rgba(240,236,228,0.15);
+  }
+  .pill.active {
+    background: rgba(196,166,157,0.2);
+    border-color: rgba(196,166,157,0.4);
+    color: #c4a69d;
+  }
+
+  .spectrum-stage {
+    padding: 24px 16px 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .arch-frame {
+    position: relative;
+    margin: 0 auto;
+    width: 280px;
+  }
+  .arch-top {
+    height: 40px;
+    border-radius: 140px 140px 0 0;
+    border: 1px solid rgba(240,236,228,0.06);
+    border-bottom: none;
+    background: linear-gradient(180deg, rgba(240,236,228,0.04), transparent);
+  }
+  .arch-body {
+    border-left: 1px solid rgba(240,236,228,0.06);
+    border-right: 1px solid rgba(240,236,228,0.06);
+    padding: 0 16px;
+    min-height: 160px;
+    position: relative;
+  }
+
+  .spectrum-bars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 5px;
+    height: 140px;
+    padding-top: 10px;
+  }
+  .bar {
+    width: 6px;
+    border-radius: 3px 3px 1px 1px;
+    position: relative;
+    transition: height 0.1s ease;
+  }
+  .bar::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -2px; right: -2px;
+    height: 8px;
+    border-radius: 50%;
+    background: inherit;
+    filter: blur(6px);
+    opacity: 0.6;
+  }
+
+  .reflection {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 5px;
+    height: 28px;
+    transform: scaleY(-1);
+    opacity: 0.06;
+    mask: linear-gradient(to top, transparent, white);
+    -webkit-mask: linear-gradient(to top, transparent, white);
+  }
+  .reflection .bar { border-radius: 3px 3px 1px 1px; }
+  .reflection .bar::after { display: none; }
+
+  .pool-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(196,166,157,0.2), rgba(181,160,181,0.2), rgba(196,166,157,0.2), transparent);
+    margin: 0 -16px;
+  }
+
+  .info-panel {
+    margin: 16px 20px 20px;
+    padding: 16px 20px;
+    background: rgba(240,236,228,0.08);
+    border: 1px solid rgba(240,236,228,0.12);
+    border-radius: 16px;
+    backdrop-filter: blur(24px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .info-panel:hover {
+    background: rgba(240,236,228,0.1);
+  }
+
+  .play-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c4a69d, #b5a0b5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #3a3835;
+    box-shadow: 0 4px 16px rgba(196,166,157,0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: none;
+  }
+  .play-btn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 24px rgba(196,166,157,0.5);
+  }
+
+  .scene-name {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    color: #e0dbd4;
+  }
+  .scene-desc {
+    font-size: 11px;
+    opacity: 0.4;
+    letter-spacing: 0.3px;
+    margin-top: 2px;
+  }
+
+  .expandable {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s;
+    opacity: 0;
+  }
+  .expandable.open {
+    max-height: 200px;
+    opacity: 1;
+  }
+  .expand-content {
+    padding: 0 20px 16px;
+  }
+  .expand-toggle {
+    text-align: center;
+    padding: 4px 0 12px;
+    font-size: 10px;
+    opacity: 0.25;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: none;
+    transition: opacity 0.3s;
+  }
+  .expand-toggle:hover { opacity: 0.5; }
+
+  .volume-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+  }
+  .volume-icon { font-size: 14px; opacity: 0.4; }
+  .volume-track {
+    flex: 1;
+    height: 4px;
+    background: rgba(240,236,228,0.08);
+    border-radius: 2px;
+    position: relative;
+  }
+  .volume-fill {
+    height: 100%;
+    width: 65%;
+    background: linear-gradient(90deg, #c4a69d, #b5a0b5);
+    border-radius: 2px;
+  }
+  .volume-thumb {
+    position: absolute;
+    left: calc(65% - 6px);
+    top: -4px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #e0dbd4;
+    box-shadow: 0 0 8px rgba(196,166,157,0.5);
+  }
+
+  .popover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1;
+    border-radius: 24px;
+  }
+  .popover > * { position: relative; z-index: 2; }
+
+  .popover::after {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 100%;
+    background: radial-gradient(ellipse at 50% 0%, rgba(196,166,157,0.06), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .label-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0 4px;
+    font-size: 10px;
+    opacity: 0.2;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-dot" id="cursorDot"></div>
+
+<div class="popover">
+  <div class="scene-panel">
+    <div class="scene-pills">
+      <div class="pill active" onmouseenter="cursorHover(true)" onmouseleave="cursorHover(false)">Study</div>
+      <div class="pill" onmouseenter="cursorHover(true)" onmouseleave="cursorHover(false)">Drive</div>
+      <div class="pill" onmouseenter="cursorHover(true)" onmouseleave="cursorHover(false)">Workout</div>
+      <div class="pill" onmouseenter="cursorHover(true)" onmouseleave="cursorHover(false)">Cook</div>
+      <div class="pill" onmouseenter="cursorHover(true)" onmouseleave="cursorHover(false)">Date</div>
+      <div class="pill" onmouseenter="cursorHover(true)" onmouseleave="cursorHover(false)">Chill</div>
+    </div>
+  </div>
+
+  <div class="spectrum-stage">
+    <div class="arch-frame">
+      <div class="arch-top"></div>
+      <div class="arch-body">
+        <div class="spectrum-bars" id="spectrumBars"></div>
+        <div class="pool-line"></div>
+        <div class="reflection" id="reflection"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="expand-toggle" id="expandToggle" onclick="toggleExpand()" onmouseenter="cursorHover(true)" onmouseleave="cursorHover(false)">details</div>
+
+  <div class="expandable" id="expandCard">
+    <div class="expand-content">
+      <div class="volume-row">
+        <span class="volume-icon">&#x1f507;</span>
+        <div class="volume-track">
+          <div class="volume-fill"></div>
+          <div class="volume-thumb"></div>
+        </div>
+        <span class="volume-icon">&#x1f50a;</span>
+      </div>
+      <div class="label-row">
+        <span>Temperature: 1.1</span>
+        <span>Guidance: 4.0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-panel" onmouseenter="cursorHover(true)" onmouseleave="cursorHover(false)">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div class="play-btn">&#x23f8;</div>
+      <div>
+        <div class="scene-name" id="sceneName">Study</div>
+        <div class="scene-desc">Lo-fi ambient piano</div>
+      </div>
+    </div>
+    <div style="font-size: 20px; opacity: 0.15;">&#x266b;</div>
+  </div>
+</div>
+
+<script>
+const cursor = document.getElementById('cursor');
+const dot = document.getElementById('cursorDot');
+let cx = 0, cy = 0, dx = 0, dy = 0;
+
+document.addEventListener('mousemove', e => {
+  dx = e.clientX; dy = e.clientY;
+  dot.style.left = (dx - 2) + 'px';
+  dot.style.top = (dy - 2) + 'px';
+});
+
+function animateCursor() {
+  cx += (dx - cx) * 0.15;
+  cy += (dy - cy) * 0.15;
+  cursor.style.left = (cx - 10) + 'px';
+  cursor.style.top = (cy - 10) + 'px';
+  requestAnimationFrame(animateCursor);
+}
+animateCursor();
+
+function cursorHover(hovering) {
+  cursor.classList.toggle('hovering', hovering);
+}
+
+const morandiColors = [
+  'rgba(196,166,157,',
+  'rgba(181,160,181,',
+  'rgba(163,171,143,',
+  'rgba(142,154,175,',
+  'rgba(201,191,170,',
+];
+
+const barsContainer = document.getElementById('spectrumBars');
+const reflContainer = document.getElementById('reflection');
+const barCount = 24;
+const bars = [];
+const refBars = [];
+
+for (let i = 0; i < barCount; i++) {
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  const ci = i % morandiColors.length;
+  bar.style.background = 'linear-gradient(to top, ' + morandiColors[ci] + '0.9), ' + morandiColors[ci] + '0.3))';
+  barsContainer.appendChild(bar);
+  bars.push(bar);
+
+  const ref = document.createElement('div');
+  ref.className = 'bar';
+  ref.style.background = morandiColors[ci] + '0.8)';
+  reflContainer.appendChild(ref);
+  refBars.push(ref);
+}
+
+const baseHeights = bars.map(() => 20 + Math.random() * 40);
+const speeds = bars.map(() => 0.5 + Math.random() * 2);
+const phases = bars.map(() => Math.random() * Math.PI * 2);
+
+function animateBars() {
+  const t = Date.now() / 1000;
+  bars.forEach((bar, i) => {
+    const wave = Math.sin(t * speeds[i] + phases[i]);
+    const wave2 = Math.sin(t * speeds[i] * 0.7 + phases[i] * 1.3);
+    const h = baseHeights[i] + wave * 25 + wave2 * 15;
+    const clamped = Math.max(8, Math.min(130, h));
+    bar.style.height = clamped + 'px';
+    refBars[i].style.height = (clamped * 0.6) + 'px';
+  });
+  requestAnimationFrame(animateBars);
+}
+animateBars();
+
+function toggleExpand() {
+  const card = document.getElementById('expandCard');
+  const toggle = document.getElementById('expandToggle');
+  card.classList.toggle('open');
+  toggle.textContent = card.classList.contains('open') ? 'hide' : 'details';
+}
+
+document.querySelectorAll('.pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    document.getElementById('sceneName').textContent = pill.textContent;
+  });
+});
+</script>
+</body>
+</html>
