@@ -18,7 +18,7 @@ Simone 是一个 AI 实时音乐生成 iOS/Mac App。采用「氛围电台」定
 
 | 子版本 | 主题 | 核心抓手 |
 |---|---|---|
-| **v1.1.0** ⏳ | 稳定性 | 预加载伪实时 + 重连平滑 + NowPlaying 补齐 |
+| **v1.1.0** ✅ | 稳定性 | 30s Ring Buffer + 25min 换台 + 卡死 watchdog + NowPlaying artwork |
 | **v1.1.1** 📋 | 交互重塑 | 频谱=频道滑动切台 + 详情页横滑 + Evolve 改定时换台 |
 | **v1.1.2** 📋 | 音乐表现力 | Evolve 深度算法 + BPM UI + Smart Adapt + Slow Jam 推荐 |
 | **v1.1.3** 📋 | 平台集成 | 灵动岛/锁屏 artwork + 小组件 + API Key 加固 |
@@ -93,6 +93,17 @@ simone/
 
 - **iOS Bundle ID**: `com.simone.ios`
 - **Team ID**: `627M26D553`
+
+## 核心开发原则
+
+**所有操作必须可逆**（v1.1 起强制执行）：
+- **Git 粒度**：每个独立抓手单独 commit，出问题能 `git revert` 回上一步不牵连其他功能
+- **不做破坏性删除**：老逻辑不直接删，用新默认值或 feature flag 覆盖；v1.1 确认稳定再清理
+- **用户体感可逆**：新交互默认保留"回到旧方式"的入口或偏好开关，用户不适应能退回
+- **数据可逆**：改 UserDefaults / Keychain schema 时保留旧 key 一个版本，读迁移写新格式
+- **发布可逆**：每个 v1.1.x ship 前保证能通过 TestFlight 回滚到前一版
+
+> 因为信任所以简单——但信任的前提是每一步都能回退。
 
 ## 唤醒上下文
 

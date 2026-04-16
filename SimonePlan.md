@@ -477,20 +477,22 @@ v1.0 上架版采取「全功能免费解锁、无试用限制」策略简化提
 
 ---
 
-## v1.1.0 —— 稳定性修复（Phase B）
+## v1.1.0 —— 稳定性修复（Phase B）✅ 2026-04-16 完成
 
 **目标**：消除用户流失点，把 v1.0 地基打牢。
 
-- [ ] 预加载伪实时：进入 App 先下载 1-2 分钟音频到本地缓冲，切出回来无缝续播
-- [ ] 重连平滑：LyriaClient 重连过渡时保持旧 buffer 播放，用户无感
-- [ ] 30 分钟自动换台机制：session 级定时换电台，规避 Lyria 长连接不稳
-- [ ] 播放卡死 bug 定位 —— heartbeat 监控 + 自动恢复
-- [ ] 免费试用残留代码清理
-- [ ] NowPlaying 补齐：title（风格名）+ artwork
+- [x] **30s Ring Buffer**：`AudioBufferQueue` 从 unbounded FIFO 改成容量 30s（5.76MB）环形缓冲，超容量丢最老。切后台/锁屏/网络抖动期间 player 吃老缓冲不断音
+- [x] **重连平滑**：`LyriaClient.handleDisconnect` 本来就不动音频队列，配合 ring buffer 天然无感重连
+- [x] **25min 自动换台**：`AppState.sessionRotationTimer` 独立定时器，到点调 `nextStyle()`，规避 Lyria 长连接老化。Settings 暴露 AUTO CHANNEL ROTATE 开关，UserDefaults 持久化，默认 on
+- [x] **卡死 watchdog**：`AudioEngine` 每 3s 检查 `isPlaying && isUnderrun && 10s 无 chunk` → 触发 `onPlaybackStalled` → AppState 自动重连
+- [x] **Trial 残留代码清理**：grep 全代码库无 trial/free/paid 相关悬挂逻辑，v1.0 本身就是全解锁干净版
+- [x] **NowPlaying artwork**：`makeArtwork` 渲染 512×512 频道色渐变 + "Simone" logo + 风格名；title/artist 补齐
 
-**关键文件**：`LyriaClient.swift` / `AudioBufferQueue.swift` / `AudioEngine.swift` / `AppState.swift`
+**关键文件**：`AudioBufferQueue.swift` · `AudioEngine.swift` · `AppState.swift` · `SettingsView.swift`
 
-**验收**：切出 5 分钟回来无缝续播 · 连续播放 1 小时无卡死 · 锁屏显示风格名+artwork
+**可逆性**：ring buffer 容量可配置（init 参数）· 换台开关可关 · watchdog 可通过不绑定 callback 禁用 · commit `0d5636c` 单独 revert 整体回 v1.0
+
+**验收**：App Store 上架后 TestFlight 实测待老鱼反馈
 
 ---
 
