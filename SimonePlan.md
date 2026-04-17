@@ -500,21 +500,35 @@ v1.0 上架版采取「全功能免费解锁、无试用限制」策略简化提
 
 ---
 
-## v1.1.1 —— 交互重塑（Phase A + Phase 2.6 命名落地）
+## v1.1.1 —— 交互重塑 📋 2026-04-16 brainstorm 定稿
 
-**目标**：从"列表选风格"颠覆为"滑动即切台"。
+**目标**：App 内凡是横滑都是换频道。主页 + 沉浸页 + 详情页手势统一，**主页 UI 零视觉改动**。
 
-- [ ] 频谱 = 频道：每个频谱绑定频道视觉身份
-- [ ] 滑动频谱切换频道（替代 ◁ ▷ 按钮）
-- [ ] 详情页改横向左右滑动（替代纵向 Tab）
-- [ ] 详情页频道/pills 自由排列（拖拽排序，Tune 档）
-- [ ] Evolve 重定义：从"同风格微调"改为"定时在同频道内换台"
-- [ ] 收藏逻辑：收藏**频道**，不是单独电台
-- [ ] Phase 2.6 命名落地：UI 文案改 Flow / Tune / Studio
+**完整 spec**：`docs/superpowers/specs/2026-04-16-v1.1.1-interaction-redesign-design.md`
 
-**关键文件**：`SpectrumCarouselView.swift` / `PlayControlView.swift` / `DetailsView.swift` / `AppState.swift` / `MusicStyle.swift`
+**6 个抓手（按 commit 顺序）**：
+- [ ] **Channel 数据模型**：`Channel` 枚举（`.favorites` + `.category(StyleCategory)`），`state.channels` 11 个平级频道，`currentChannel` 持久化
+- [ ] **横滑换频道**：`SpectrumCarouselView` 底层 binding 从 `VisualizerStyle` 换成 `Channel`，主页/沉浸页/详情页三处复用同一逻辑
+- [ ] **◁ ▷ 分类内循环**：`previousStyle()/nextStyle()` 实现改为 `stylesInCurrentChannel` 内循环（按钮 UI 不动）
+- [ ] **Evolve 修对**：从 `temperature` 抖动改为拼接"微调词池"（加/减乐器 + 能量/密度 + 纹理），红线不跨流派。新建 `EvolveVocabulary.swift`
+- [ ] **Auto Tune 新建**：Settings 页 Evolve 并排 Toggle，**默认关闭**，25min 定时 → `nextStyleInChannel()`（分类内换下一首，不跨台）
+- [ ] **详情页横滑 Page**：`TabView + .page` 11 页，pill indicator 对齐 `SpectrumCarouselView` dots
+- [ ] **可视化器入口下移**：Settings 页 visualizerSection 改为可点击循环切换
 
-**验收**：频谱水平滑动 < 2s 出声 · 详情页横滑无卡顿 · Evolve 定时换台 · 收藏作用于频道
+**硬约束**：
+- 主页 + 沉浸页视觉一个像素不改（零改动验证）
+- 不破坏沉浸感：Auto Tune 默认关、Evolve 不跨流派、所有自动行为无 toast 无打断
+- 数据可逆：`pinnedStyles` schema 不变；旧 `sessionRotationEnabled` key 启动时清理；新 key `autoTuneEnabled`
+
+**延后到 v1.1.4**（随付费分层一起做）：
+- Flow / Tune / Studio 命名 + 🔒 标记 + 升级弹窗
+- 详情页频道 pill 拖拽排序
+- "+ New Style" 入口（拼标签 / Direct Input）
+- StoreKit 2 + 付费分层代码 gate
+
+**关键文件**：`SpectrumCarouselView.swift` · `PlayControlView.swift`（不改）· `DetailsView.swift` · `AppState.swift` · `SettingsView.swift` · 新建 `Channel.swift` / `EvolveVocabulary.swift`
+
+**验收**：主页 UI diff v1.0 = 0 · 横滑 11 频道一致手势 · Evolve 听感有变化但不跳台 · Auto Tune 默认关、开启后后台静默轮转
 
 ---
 

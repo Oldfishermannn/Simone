@@ -19,7 +19,7 @@ Simone 是一个 AI 实时音乐生成 iOS/Mac App。采用「氛围电台」定
 | 子版本 | 主题 | 核心抓手 |
 |---|---|---|
 | **v1.1.0** ✅ | 稳定性 | 30s Ring Buffer + 卡死 watchdog + NowPlaying artwork（不破坏沉浸感） |
-| **v1.1.1** 📋 | 交互重塑 | 频谱=频道滑动切台 + 详情页横滑 + Evolve 改定时换台 |
+| **v1.1.1** 📋 | 交互重塑 | 横滑换频道（主页/沉浸/详情统一）+ Evolve 修对 + Auto Tune 默认关（[spec](docs/superpowers/specs/2026-04-16-v1.1.1-interaction-redesign-design.md)） |
 | **v1.1.2** 📋 | 音乐表现力 | Evolve 深度算法 + BPM UI + Smart Adapt + Slow Jam 推荐 |
 | **v1.1.3** 📋 | 平台集成 | 灵动岛/锁屏 artwork + 小组件 + API Key 加固 |
 | **v1.1.4** 📋 | 商业化 | StoreKit 2 + Flow/Tune/Studio 分层 + 前 100 名 50% off |
