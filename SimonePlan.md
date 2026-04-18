@@ -472,7 +472,7 @@ v1.0 上架版采取「全功能免费解锁、无试用限制」策略简化提
 | 版本 | 主题 | 估时 | 累积 | 状态 |
 |---|---|---|---|---|
 | v1.1.0 | 稳定性 | 1.5 周 | 1.5 周 | ✅ 2026-04-16 完成 |
-| v1.1.1 | 交互重塑 | 2 周 | 3.5 周 | 📋 spec 定稿，待实施 |
+| v1.1.1 | 交互重塑 | 2 周 | 3.5 周 | ✅ 2026-04-18 确认已 ship 到 iOS main |
 | v1.2 | Fog 视觉重设计 | 2 周 | 5.5 周 | 📋 立项中 |
 | v1.3 | 商业化 | 1 周 | 6.5 周 | 📋 待启动 brainstorm |
 | v2.0 | 音乐表现力 | 2 周 | 8.5 周 | 📋 brainstorm 已做，待实施 |
@@ -503,20 +503,26 @@ v1.0 上架版采取「全功能免费解锁、无试用限制」策略简化提
 
 ---
 
-## v1.1.1 —— 交互重塑 📋 2026-04-16 brainstorm 定稿
+## v1.1.1 —— 交互重塑 ✅ 2026-04-18 实测确认已 ship 到 iOS main
 
 **目标**：App 内凡是横滑都是换频道。主页 + 沉浸页 + 详情页手势统一，**主页 UI 零视觉改动**。
 
 **完整 spec**：`docs/superpowers/specs/2026-04-16-v1.1.1-interaction-redesign-design.md`
 
-**6 个抓手（按 commit 顺序）**：
-- [ ] **Channel 数据模型**：`Channel` 枚举（`.favorites` + `.category(StyleCategory)`），`state.channels` 11 个平级频道，`currentChannel` 持久化
-- [ ] **横滑换频道**：`SpectrumCarouselView` 底层 binding 从 `VisualizerStyle` 换成 `Channel`，主页/沉浸页/详情页三处复用同一逻辑
-- [ ] **◁ ▷ 分类内循环**：`previousStyle()/nextStyle()` 实现改为 `stylesInCurrentChannel` 内循环（按钮 UI 不动）
-- [ ] **Evolve 修对**：从 `temperature` 抖动改为拼接"微调词池"（加/减乐器 + 能量/密度 + 纹理），红线不跨流派。新建 `EvolveVocabulary.swift`
-- [ ] **Auto Tune 新建**：Settings 页 Evolve 并排 Toggle，**默认关闭**，25min 定时 → `nextStyleInChannel()`（分类内换下一首，不跨台）
-- [ ] **详情页横滑 Page**：`TabView + .page` 11 页，pill indicator 对齐 `SpectrumCarouselView` dots
-- [ ] **可视化器入口下移**：Settings 页 visualizerSection 改为可点击循环切换
+**落地状态（2026-04-18 核查 iOS repo `main` HEAD）**：
+
+commit 范围 `1626c88..fb43a5f` [8/12..12/12] 加上后续 polish/fix 一系列至 `da09746`。
+
+**6 个抓手全部落地**：
+- [x] **Channel 数据模型** · `Simone/Models/Channel.swift` ✅（`.favorites` + 10 `.category` 枚举）
+- [x] **横滑换频道** · SpectrumCarouselView Channel-bound ✅
+- [x] **◁ ▷ 分类内循环** · commit `1626c88` v1.1.1 [8/12] ✅
+- [x] **Evolve 修对** · `Simone/Network/EvolveVocabulary.swift` + PromptBuilder 接入（commit [9/12]）✅
+- [x] **Auto Tune** · AppState `autoTuneEnabled: Bool = false` + 25min drift（commit [10/12]）✅
+- [x] **详情页横滑 Page** · DetailsView 11-page TabView + dial（commit [11/12]）✅
+- [x] **可视化器入口下移** · SettingsView 报告型（commit [12/12]，"report don't select"）✅
+
+**后续 polish（也都在 main 上）**：main page slide/fade 收敛 · FAVORITES badge 修复 · details 横滑免与垂直冲突 · dial content-hugging · Evolve 默认 Lock · 最终主页合进 Details + Immersive（commit `fe4dc2c`）
 
 **硬约束**：
 - 主页 + 沉浸页视觉一个像素不改（零改动验证）
