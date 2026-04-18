@@ -461,19 +461,22 @@ v1.0 上架版采取「全功能免费解锁、无试用限制」策略简化提
 - ✅ 28 个可视化器已实装
 - ❌ 付费分层 UI、免费试用、预加载、Smart Adapt、多风格混合、离线电台、导出、自定义主题 全部 0 代码
 
-## v1.1 总体策略
+## v1.x 总体策略
 
-**串行执行，子版本滚动发布**：每个 Phase ship 独立 `v1.1.x`，两周一节奏。
+**串行执行，滚动发布**：每个 version ship 独立 tag，2 周一节奏。
 
-**顺序：先稳 → 再变 → 再爽 → 再连 → 再赚。**
+**新顺序（2026-04-18 老鱼拍板）：先稳 → 再变（交互）→ 再美（UI）→ 再赚（商业化）→ 再爽（音乐表现力）→ 再连（平台集成）。**
 
-| 子版本 | 主题 | 估时 | 累积 |
-|---|---|---|---|
-| v1.1.0 | 稳定性 | 1.5 周 | 1.5 周 |
-| v1.1.1 | 交互重塑 | 2 周 | 3.5 周 |
-| v1.1.2 | 音乐表现力 | 1.5 周 | 5 周 |
-| v1.1.3 | 平台集成 | 1 周 | 6 周 |
-| v1.1.4 | 商业化 | 1 周 | 7 周 |
+> UI 不好的时候做付费转化等于砸自己 —— 所以 Fog UI 大修 + 商业化提前，音乐表现力 + 平台集成后置到 v2.x。
+
+| 版本 | 主题 | 估时 | 累积 | 状态 |
+|---|---|---|---|---|
+| v1.1.0 | 稳定性 | 1.5 周 | 1.5 周 | ✅ 2026-04-16 完成 |
+| v1.1.1 | 交互重塑 | 2 周 | 3.5 周 | 📋 spec 定稿，待实施 |
+| v1.2 | Fog 视觉重设计 | 2 周 | 5.5 周 | 📋 立项中 |
+| v1.3 | 商业化 | 1 周 | 6.5 周 | 📋 待启动 brainstorm |
+| v2.0 | 音乐表现力 | 2 周 | 8.5 周 | 📋 brainstorm 已做，待实施 |
+| v2.1 | 平台集成 | 2 周 | 10.5 周 | 📋 brainstorm 已做，待实施 |
 
 ---
 
@@ -520,7 +523,7 @@ v1.0 上架版采取「全功能免费解锁、无试用限制」策略简化提
 - 不破坏沉浸感：Auto Tune 默认关、Evolve 不跨流派、所有自动行为无 toast 无打断
 - 数据可逆：`pinnedStyles` schema 不变；旧 `sessionRotationEnabled` key 启动时清理；新 key `autoTuneEnabled`
 
-**延后到 v1.1.4**（随付费分层一起做）：
+**延后到 v1.3**（随付费分层一起做）：
 - Flow / Tune / Studio 命名 + 🔒 标记 + 升级弹窗
 - 详情页频道 pill 拖拽排序
 - "+ New Style" 入口（拼标签 / Direct Input）
@@ -532,70 +535,19 @@ v1.0 上架版采取「全功能免费解锁、无试用限制」策略简化提
 
 ---
 
-## v1.1.2 —— 音乐表现力（Phase C + Smart Adapt + Phase 2.5 Evolve 深度）
+## v1.2 —— Fog City Nocturne 视觉重设计（立项中，待审核）
 
-**目标**：解决听久疲劳、频谱看腻。
-
-- [ ] Evolve 深度算法：加减乐器/密度变化/能量变化三类微调（当前只是 temperature 抖动）
-- [ ] BPM UI 开放：AppState 已有字段，暴露到 SettingsView 滑块
-- [ ] 频谱视觉多样化：28 可视化器自动轮播 / 氛围联动
-- [ ] Slow Jam 推荐机制：基于播放时长 + 收藏行为推荐频道
-- [ ] Smart Adapt（Phase 2.5 遗留）：
-  - Time-aware 必做（早上明亮/深夜低沉）
-  - Weather-aware 可选（需定位权限，评估后定）
-
-**关键文件**：`PromptBuilder.swift` / `SettingsView.swift` / `Visualizers/` / `AppState.swift`
-
-**验收**：同频道播 30 分钟不疲劳（Evolve 有感变化 ≥3 次）· BPM 拖动 5s 响应 · 早/午/深夜氛围不同 · "For You"推荐频道
-
----
-
-## v1.1.3 —— 平台集成（Phase D）
-
-**目标**：iOS 生态深度融合。
-
-- [ ] 锁屏/灵动岛优化：title（频道名·风格）+ artwork（频谱快照/专属 artwork）
-- [ ] API Key 保护加强：XOR + 字节拆分基础上加运行时反调试
-- [ ] 小组件（Widget）：小/中/大三尺寸（当前频道 + 播放/暂停 + 频谱预览 + 频道切换）
-
-**关键文件**：`AudioEngine.swift` / `APIKeyObfuscator.swift` / 新建 `SimoneWidget/`
-
-**验收**：灵动岛显示频道名+频谱动画 · 锁屏 artwork 随频道变 · 小组件点击 <1s 响应 · `strings` 扫不出明文 Key
-
----
-
-## v1.1.4 —— 商业化（Phase E + StoreKit 2 + Phase 2.5 付费分层真接入）
-
-**目标**：Flow/Tune/Studio 付费分层真生效，早期用户红利锁定。
-
-- [ ] StoreKit 2 接入：月订阅 + 买断两条线
-- [ ] 付费分层真生效（v1.0 全免费解锁分拆）：
-  - **Flow** 免费：随机调台、基础 Evolve、Sleep Timer、18 可视化器
-  - **Tune** $1.99/月 或 $9.99 买断：点具体风格、收藏、拼标签生成、可视化器排序
-  - **Studio** $4.99/月 或 $19.99 买断（含 Tune）：Direct Input、BPM/temperature 高级参数
-- [ ] 早期用户红利：前 100 名买断享 **50% off**（StoreKit Introductory Offer）
-- [ ] 🔒 升级弹窗 UI：买断大按钮 + 月付小字 + "稍后再说"
-- [ ] 升级文案对齐 Phase 2.6 品牌语言
-
-**关键文件**：新建 `StoreKitManager.swift` / `UpgradeView.swift` / `AppState.swift` / `SettingsView.swift` + App Store Connect 产品配置
-
-**验收**：Flow 用户点 🔒 弹升级 · Tune 购买解锁对应功能 · Studio 可用 Direct Input · 前 100 名看到 50% off 促销价
-
----
-
-## v2.0 —— Fog City Nocturne 视觉重设计（立项中，待审核）
-
-**状态**：📋 立项中（设计已锁，待老鱼审批后进入 v2.0 实施）
+**状态**：📋 立项中（设计已锁，待老鱼审批后进入 v1.2 实施）
 **设计 spec**：`docs/superpowers/specs/2026-04-18-simone-fog-redesign.md`（Fog v5 最终锁定版，含完整色板/字体/页面架构/mockup）
-**前置条件**：v1.1.1 → v1.1.4 全部 ship，v1.1 线稳定后才开 v2.0，不混线。
+**前置条件**：v1.1.1 ship 后紧接开工，放在商业化之前做 —— UI 烂的时候做付费转化等于砸自己。
 
 ### 定位
 
 **Fog City Nocturne · 雾都夜色**——晚 11 点地下酒吧的雾玻璃感。冷色、极简、克制。视觉 99% 让给音乐。对标 Teenage Engineering 说明书 / Aesop 产品页 / 黑胶封套内页。
 
-### 为什么做 v2.0 视觉重设计
+### 为什么前置做 UI 大修
 
-v1.0 上架的视觉是功能优先快速成型版本，老鱼在 v1.1 交互重塑闭环后明确提出"对现在的 uiux 用户交互不是很满意"。v2.0 做的是**换皮不改骨**：底层音频引擎、频谱逻辑、频道数据、BYOK 全不动，只换视觉语言 + 字体系统 + 一屏化 Settings。
+v1.0 上架的视觉是功能优先快速成型版本，老鱼在 v1.1 交互重塑闭环后明确提出"对现在的 uiux 用户交互不是很满意"。v1.2 做的是**换皮不改骨**：底层音频引擎、频谱逻辑、频道数据、BYOK 全不动，只换视觉语言 + 字体系统 + 一屏化 Settings。
 
 ### 核心原则
 
@@ -628,13 +580,13 @@ v1.0 上架的视觉是功能优先快速成型版本，老鱼在 v1.1 交互重
 - **字体包体积**：+500KB 到 IPA，可接受
 - **Fraunces 斜体接受度**：跟 Unbounded 冷调搭配是秘密武器，若老鱼看久觉得太文艺，可降级 Archivo Italic
 - **Mauve 强调色频率**：沿用 v1 的 MorandiPalette.mauve，但 Fog 里使用频率大幅降低（仅选中/ON/高亮值），更贵重
-- **一屏 Settings 扩展性**：v2.0 起新设置项必走二级页，不往主 Settings 加行——这是原则
+- **一屏 Settings 扩展性**：v1.2 起新设置项必走二级页，不往主 Settings 加行——这是原则
 
 ### 2026-04-18 立项备注
 
 - 本立项前曾有一次实施尝试（`feature/fog-redesign` 分支，Phase 1-4 代码落地 + 构建通过），老鱼否掉："应该先写 plan 到 SimonePlan（例如 simone v2 这种），立项通过后再实施"
 - 该分支已删除，所有源文件回滚到 v1.1.1 状态，零残留
-- 本 v2.0 立项条目即为用户要求的正式立项入口
+- 本 v1.2 立项条目即为用户要求的正式立项入口
 
 ### 验收
 
@@ -644,9 +596,105 @@ v1.0 上架的视觉是功能优先快速成型版本，老鱼在 v1.1 交互重
 - 音频引擎 / 频谱 / BYOK 行为 0 变化
 - 字体 license 合规，IPA 体积增量可接受
 
+
 ---
 
-## v2.1+ 远期待定
+## v1.3 —— 商业化（Phase E + StoreKit 2 + Phase 2.5 付费分层真接入）
+
+**目标**：Flow/Tune/Studio 付费分层真生效，早期用户红利锁定。
+
+- [ ] StoreKit 2 接入：月订阅 + 买断两条线
+- [ ] 付费分层真生效（v1.0 全免费解锁分拆）：
+  - **Flow** 免费：随机调台、基础 Evolve、Sleep Timer、18 可视化器
+  - **Tune** $1.99/月 或 $9.99 买断：点具体风格、收藏、拼标签生成、可视化器排序
+  - **Studio** $4.99/月 或 $19.99 买断（含 Tune）：Direct Input、BPM/temperature 高级参数
+- [ ] 早期用户红利：前 100 名买断享 **50% off**（StoreKit Introductory Offer）
+- [ ] 🔒 升级弹窗 UI：买断大按钮 + 月付小字 + "稍后再说"
+- [ ] 升级文案对齐 Phase 2.6 品牌语言
+
+**关键文件**：新建 `StoreKitManager.swift` / `UpgradeView.swift` / `AppState.swift` / `SettingsView.swift` + App Store Connect 产品配置
+
+**验收**：Flow 用户点 🔒 弹升级 · Tune 购买解锁对应功能 · Studio 可用 Direct Input · 前 100 名看到 50% off 促销价
+
+
+---
+
+## v2.0 —— 音乐表现力（Phase C + Smart Adapt + Phase 2.5 Evolve 深度）
+
+**目标**：解决听久疲劳、频谱看腻（老鱼原话："现在的频谱太单调了"）。
+
+### 抓手 A：频谱视觉表现力重塑（实施前再写 spec 到 `docs/superpowers/specs/`）
+
+不做自动轮播，做**单个 visualizer 内部的三层耦合驱动**：
+
+- **高频层（60fps，跟音频）**：新增 `AudioEngine.beatAmplitude`（bass RMS）+ `energyLevel`（整谱 RMS），用于粒子爆发 / 脉冲尺寸
+- **中频层（秒级，独立时间相位）**：`Date()` 驱动 sine，颜色渐变相位 + 图层呼吸
+- **低频层（跟 Evolve 触发）**：Evolve 每次触发时切主色 + 图层 reshuffle，Lock 模式完全静止
+
+**5 个独立 commit 抓手**：
+- [ ] A1：AudioEngine 暴露 `beatAmplitude` + `energyLevel`（~15 行，vDSP_rmsqv）
+- [ ] A2：新建 `VisualizerDriver.swift`，三层信号中枢（需要从 `AppState.evolve()` 触发 `onEvolve()`——和 v1.1.1 同事拉通 hook 点）
+- [ ] A3：`MorandiPalette` 静态 5 色 → 动态调色板函数（保留 static 作降级）
+- [ ] A4：`SpectrumCarouselView:20-26` 唯一注入点，driver 传入 visualizer
+- [ ] A5：11 个 visualizer 分 2 批接入（第 1 批 6 个已有 bass 检测的，第 2 批 5 个剩下的）
+
+**Scope 硬约束**：只改 `VisualizerStyle.allCases` 枚举里的 **11 个**（horizon/ringPulse/terrain/rainfall/helix/lattice/prism/matrix/flora/glitch/oscilloscope），`Views/Visualizers/` 目录下不在枚举里的文件是老鱼否掉的，不碰。主页 UI 零视觉改动。
+
+### 抓手 B-E：音乐侧（独立 commit）
+
+- [ ] B：Evolve 深度算法（prompts 维度改 instruments / density / energy，不只 temperature 抖动）
+- [ ] C：BPM UI 开放（AppState.bpm 已有字段，暴露到 SettingsView 滑块）
+- [ ] D：Slow Jam 推荐机制（基于播放时长 + 收藏行为推荐频道）
+- [ ] E：Smart Adapt（Phase 2.5 遗留）—— Time-aware 必做（早上明亮/深夜低沉），Weather-aware 可选
+
+**关键文件**：`AudioEngine.swift` / `AppState.swift` / `SpectrumCarouselView.swift` / `Views/Visualizers/`（11 个）/ `PromptBuilder.swift` / `SettingsView.swift`
+
+**验收**：
+- 抓手 A：同频道任选 visualizer 守 60s 有明显节奏感（高频层）· 看 30s 有颜色相位漂移（中频层）· Evolve 10s 挡守 60s 主色/布局变化 ~6 次（低频层）· Lock 模式低频层静止
+- 抓手 B-E：同频道播 30 分钟不疲劳（Evolve 有感变化 ≥3 次）· BPM 拖动 5s 响应 · 早/午/深夜氛围不同 · "For You"推荐频道
+
+
+---
+
+## v2.1 —— 平台集成（Phase D）
+
+**目标**：把"当前在听什么"从 App 内延伸到 iOS 生态全境——锁屏/灵动岛/桌面小组件。用户不用解锁进 App 也能看到频道、切风格。
+
+### 5 个独立 commit 抓手
+
+- [ ] **1. 频谱快照 Artwork**：切台/Evolve 时用 `ImageRenderer` 对当前 visualizer 截一帧 → `MPMediaItemArtwork`。替换现有色块 artwork（`AudioEngine.swift:434 makeArtwork` 升级为 `VisualizerSnapshotRenderer`）
+- [ ] **2. 锁屏 ◁▷ 切风格**：`MPRemoteCommandCenter.nextTrackCommand / previousTrackCommand` 绑到 `AppState.nextStyle / prevStyle`（和 v1.1.1 ◁▷ 按钮共用 AppIntent，不提供暂停——Simone 是电台不是播放器）
+- [ ] **3. 灵动岛 Live Activity**：新建 `SimoneWidgetExtension` target，`ActivityKit` 注册。紧凑态 = 风格名 + 伪频谱呼吸 bar（SF Symbol `.variableColor.iterative`，**不绑真实 FFT**——跨进程+iOS 限流）；展开态 = 频谱快照艺术图 + ◁▷ AppIntent 按钮
+- [ ] **4. 中号 Widget + 左右键交互**：同一 WidgetExtension target 加中号 Widget，timeline 每 15 分钟刷；◁▷ 用 AppIntent 触发 `prevStyle/nextStyle`；艺术图用频谱快照。**只做中号**（小/大档等装机数据回来再扩）
+- [ ] **5. API Key 反调试**：XOR + 字节拆分基础上加三道——`sysctl` 检测调试器附加 / `dyld` 检查越狱/注入环境 / 运行时首次解密后立即抹内存 buffer
+
+**共享基础设施**：
+- 抓手 1/3/4 都要频谱快照 → 建 `VisualizerSnapshotRenderer.swift` 单例，主 App + WidgetExtension 共用
+- 抓手 2/3/4 的 ◁▷ 行为 → 共享同一套 `NextStyleIntent` / `PrevStyleIntent`（AppIntents），一处定义三端通吃
+
+**commit 顺序**：5 → 1 → 2 → 3 → 4（先 Key 加固抹掉安全风险，再升级锁屏，最后做 Live Activity + Widget 一起搞 target）
+
+**关键文件**：`AudioEngine.swift`（artwork + remote command）/ `APIKeyObfuscator.swift`（加固）/ `AppState.swift`（AppIntent 对接）/ 新建 `VisualizerSnapshotRenderer.swift` / 新建 `SimoneWidgetExtension/`（Widget + Live Activity 同 target）/ 新建 `NextStyleIntent.swift` `PrevStyleIntent.swift`
+
+**Out of Scope**：
+- 大号/小号 Widget（数据驱动再扩）
+- 灵动岛真实频谱 bar（iOS 限流，做不了真频谱；伪频谱替代）
+- Widget 实时 FFT（timeline 每 15min 静态刷）
+- 锁屏播放/暂停（Simone 产品定位是电台，不提供暂停）
+
+**验收**：
+- 抓手 1：切台瞬间锁屏 artwork 跟着换（新截图）
+- 抓手 2：锁屏按 ◁▷ 正确切换下一个/上一个风格（频道内）
+- 抓手 3：灵动岛紧凑态呼吸 bar 动起来·展开态点 ◁▷ 切风格（不解锁）
+- 抓手 4：桌面装中号 Widget·点 ◁▷ 不开 App 切风格·15min 艺术图刷新
+- 抓手 5：`strings` 扫安装包扫不出明文 Key·越狱设备/MobSF 检测到调试器自动清 Key
+
+**工作量**：2 周（比原计划 1 周翻倍，多了"锁屏 ◁▷"+ 反调试两项）
+
+
+---
+
+## v2.2+ 长尾待定
 
 - **Studio 档大功能**：多风格混合、离线电台、下载片段导出、6 套深度主题、Generate Custom Visualizer
 - **Mac 版独立上架**（`simone mac/` 已有源码）
@@ -655,15 +703,14 @@ v1.0 上架的视觉是功能优先快速成型版本，老鱼在 v1.1 交互重
 - **数据统计**（风格热度、用户行为）
 - **通知与每日氛围推送**
 
-## v1.1 执行原则
+## 执行原则
 
-- **每个 Phase 开工前单独 brainstorm 细节**：这份整体规划不是具体设计，每个 v1.1.x 启动用 brainstorming skill 深入该 Phase
+- **每个 Phase 开工前单独 brainstorm 细节**：这份整体规划不是具体设计，每个新 version 启动用 brainstorming skill 深入该 Phase
 - **每个 Phase 完成后立刻更新** `SimonePlan.md` + `CLAUDE.md`
 - **每次改完代码立刻 push**（老鱼看 TestFlight）
-- **Phase 间不混合**：v1.1.0 不 ship 绝不开 v1.1.1
+- **Phase 间不混合**：上一个 version ship 前不开下一个 version
 
-## v1.1 分工
+## 分工
 
-**小克**：v1.1.0 → v1.1.4 全部代码实施 + 计划书维护
-**老鱼**：TestFlight 体验反馈 + v1.1.4 的 App Store Connect 产品配置
-
+**小克**：v1.1.0 → v2.1 全部代码实施 + 计划书维护
+**老鱼**：TestFlight 体验反馈 + v1.3 的 App Store Connect 产品配置

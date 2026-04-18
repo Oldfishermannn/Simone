@@ -14,17 +14,18 @@ Simone 是一个 AI 实时音乐生成 iOS/Mac App。采用「氛围电台」定
 - ✅ Phase 1-5 全部闭环（直连 Google API + UI 重设计 + App Store 上架）
 - ✅ 28 个可视化器实装 + BYOK + 内置 Key
 
-### v1.1 规划中（2026-04-16 起草，串行子版本发布）
+### v1.x 规划中（2026-04-18 老鱼拍板新顺序：先稳 → 再变 → 再美 → 再赚 → 再爽 → 再连）
 
-| 子版本 | 主题 | 核心抓手 |
+| 版本 | 主题 | 核心抓手 |
 |---|---|---|
 | **v1.1.0** ✅ | 稳定性 | 30s Ring Buffer + 卡死 watchdog + NowPlaying artwork（不破坏沉浸感） |
 | **v1.1.1** 📋 | 交互重塑 | 横滑换频道（主页/沉浸/详情统一）+ Evolve 修对 + Auto Tune 默认关（[spec](docs/superpowers/specs/2026-04-16-v1.1.1-interaction-redesign-design.md)） |
-| **v1.1.2** 📋 | 音乐表现力 | Evolve 深度算法 + BPM UI + Smart Adapt + Slow Jam 推荐 |
-| **v1.1.3** 📋 | 平台集成 | 灵动岛/锁屏 artwork + 小组件 + API Key 加固 |
-| **v1.1.4** 📋 | 商业化 | StoreKit 2 + Flow/Tune/Studio 分层 + 前 100 名 50% off |
+| **v1.2** 📋 | Fog 视觉重设计 | Fog City Nocturne · OKLCH 冷色 + Unbounded/Fraunces/Archivo 字体系统 + 一屏化 Settings（[spec](docs/superpowers/specs/2026-04-18-simone-fog-redesign.md)） |
+| **v1.3** 📋 | 商业化 | StoreKit 2 + Flow/Tune/Studio 分层 + 前 100 名 50% off |
+| **v2.0** 📋 | 音乐表现力 | 频谱三层耦合驱动（高频跟音频/中频跟时间/低频跟 Evolve）+ Evolve 深度算法 + BPM UI + Smart Adapt + Slow Jam 推荐 |
+| **v2.1** 📋 | 平台集成 | 频谱快照 artwork + 锁屏◁▷切风格 + 灵动岛 Live Activity（伪频谱 bar）+ 中号 Widget（◁▷ 交互）+ API Key 反调试 |
 
-完整 v1.1 计划见 `SimonePlan.md` 末尾章节。v2.0 延后：多风格混合、离线电台、导出、主题、Mac 版、iPad 适配、CloudKit 同步。
+完整规划见 `SimonePlan.md`。v2.2+ 长尾延后：多风格混合、离线电台、导出、主题、Mac 版、iPad 适配、CloudKit 同步。
 
 ## 技术栈
 
