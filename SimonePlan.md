@@ -583,7 +583,70 @@ v1.0 上架版采取「全功能免费解锁、无试用限制」策略简化提
 
 ---
 
-## v2.0 延后项清单
+## v2.0 —— Fog City Nocturne 视觉重设计（立项中，待审核）
+
+**状态**：📋 立项中（设计已锁，待老鱼审批后进入 v2.0 实施）
+**设计 spec**：`docs/superpowers/specs/2026-04-18-simone-fog-redesign.md`（Fog v5 最终锁定版，含完整色板/字体/页面架构/mockup）
+**前置条件**：v1.1.1 → v1.1.4 全部 ship，v1.1 线稳定后才开 v2.0，不混线。
+
+### 定位
+
+**Fog City Nocturne · 雾都夜色**——晚 11 点地下酒吧的雾玻璃感。冷色、极简、克制。视觉 99% 让给音乐。对标 Teenage Engineering 说明书 / Aesop 产品页 / 黑胶封套内页。
+
+### 为什么做 v2.0 视觉重设计
+
+v1.0 上架的视觉是功能优先快速成型版本，老鱼在 v1.1 交互重塑闭环后明确提出"对现在的 uiux 用户交互不是很满意"。v2.0 做的是**换皮不改骨**：底层音频引擎、频谱逻辑、频道数据、BYOK 全不动，只换视觉语言 + 字体系统 + 一屏化 Settings。
+
+### 核心原则
+
+1. **只换皮、不改骨** — 音频引擎、频谱渲染、频道数据、BYOK 全部零改动
+2. **保留 v1.1.1 三页架构** — VerticalPageView（Immersive / Home / Settings）不动
+3. **保留 11 个 visualizer + 频道绑定** — Spectrum 枚举零改动
+4. **Settings 一屏化** — 不滚动，彻底避开跟 VerticalPageView 的手势冲突（Fog v5 方案 A）
+
+### 改动范围（只有 4 个点）
+
+| 点 | 文件 | 幅度 |
+|---|---|---|
+| 1 | `ImmersiveView.swift` | 中 · 底部 Music DNA 标签 + 风格名字体换 Unbounded Light |
+| 2 | `ChannelPageView.swift` | 中 · 列表去卡片化，虚线分隔，Unbounded+Fraunces 斜体副标 |
+| 3 | `SettingsView.swift` | 大 · 重写为一屏化章节列表（Evolve/AutoTune/Sleep/Spectrum + Colophon） |
+| 4 | 新增 `Models/FogTheme.swift` + 字体资源（Unbounded / Fraunces / Archivo 三族） | 新增 · 包体 ~+500KB |
+
+### 实施阶段（6 个独立 commit 抓手）
+
+- [ ] **P0 · Checkpoint** · 建 `feature/v2-fog` 分支 + 主线 tag，所有改动可秒回滚
+- [ ] **P1 · FogTheme 设计系统** · `Models/FogTheme.swift`（OKLCH 色板 + 字体/间距 tokens）
+- [ ] **P2 · SettingsView 一屏化重写**（影响最局部，独立验证）
+- [ ] **P3 · ImmersiveView 底部文案 + Music DNA 标签层**
+- [ ] **P4 · DetailsView/ChannelPageView 频道列表样式**
+- [ ] **P5 · 字体资源接入**（Unbounded / Fraunces / Archivo，含 license 核实）
+- 每个 P 阶段 TestFlight 跑几天，确认"不破坏沉浸感"原则没违背
+
+### 风险
+
+- **字体包体积**：+500KB 到 IPA，可接受
+- **Fraunces 斜体接受度**：跟 Unbounded 冷调搭配是秘密武器，若老鱼看久觉得太文艺，可降级 Archivo Italic
+- **Mauve 强调色频率**：沿用 v1 的 MorandiPalette.mauve，但 Fog 里使用频率大幅降低（仅选中/ON/高亮值），更贵重
+- **一屏 Settings 扩展性**：v2.0 起新设置项必走二级页，不往主 Settings 加行——这是原则
+
+### 2026-04-18 立项备注
+
+- 本立项前曾有一次实施尝试（`feature/fog-redesign` 分支，Phase 1-4 代码落地 + 构建通过），老鱼否掉："应该先写 plan 到 SimonePlan（例如 simone v2 这种），立项通过后再实施"
+- 该分支已删除，所有源文件回滚到 v1.1.1 状态，零残留
+- 本 v2.0 立项条目即为用户要求的正式立项入口
+
+### 验收
+
+- Settings 一屏装下，VerticalPageView 手势零冲突
+- Immersive 页底部 Music DNA 标签跟风格名同步滑动
+- 频道列表去卡片化后视觉信息密度 ≥ v1.1.1
+- 音频引擎 / 频谱 / BYOK 行为 0 变化
+- 字体 license 合规，IPA 体积增量可接受
+
+---
+
+## v2.1+ 远期待定
 
 - **Studio 档大功能**：多风格混合、离线电台、下载片段导出、6 套深度主题、Generate Custom Visualizer
 - **Mac 版独立上架**（`simone mac/` 已有源码）
