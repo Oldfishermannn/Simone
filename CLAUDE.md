@@ -20,7 +20,7 @@ Simone 是一个 AI 实时音乐生成 iOS/Mac App。采用「氛围电台」定
 |---|---|---|
 | **v1.1.0** ✅ | 稳定性 | 30s Ring Buffer + 卡死 watchdog + NowPlaying artwork（不破坏沉浸感） |
 | **v1.1.1** ✅ | 交互重塑 | 横滑换频道（主页/沉浸/详情统一）+ Evolve 修对 + Auto Tune 默认关（[spec](docs/superpowers/specs/2026-04-16-v1.1.1-interaction-redesign-design.md)，2026-04-18 确认已 ship 到 iOS main） |
-| **v1.2** 📋 | Fog 视觉重设计 | Fog City Nocturne · OKLCH 冷色 + Unbounded/Fraunces/Archivo 字体系统 + 一屏化 Settings（[spec](docs/superpowers/specs/2026-04-18-simone-fog-redesign.md)） |
+| **v1.2** ✅ | Fog 视觉重设计 | Fog City Nocturne · OKLCH 冷色 + Unbounded/Fraunces/Archivo 字体系统 + 一屏化 Settings + 5 频道大小图物体 morph（2026-04-19 merge 到 iOS main `842b589`，锚点 tag `v1.1.1-pre-v1.2-merge`） |
 | **v1.3** 📋 | 商业化 | StoreKit 2 + Flow/Tune/Studio 分层 + 前 100 名 50% off |
 | **v2.0** 📋 | 音乐表现力 | 频谱三层耦合驱动（高频跟音频/中频跟时间/低频跟 Evolve）+ Evolve 深度算法 + BPM UI + Smart Adapt + Slow Jam 推荐 |
 | **v2.1** 📋 | 平台集成 | 频谱快照 artwork + 锁屏◁▷切风格 + 灵动岛 Live Activity（伪频谱 bar）+ 中号 Widget（◁▷ 交互）+ API Key 反调试 |
@@ -105,6 +105,18 @@ simone/
 - **发布可逆**：每个 v1.1.x ship 前保证能通过 TestFlight 回滚到前一版
 
 > 因为信任所以简单——但信任的前提是每一步都能回退。
+
+## UI/UX 开发原则
+
+**一切 UI/UX 相关的工作，第一步必须显式调用 `plugin:impeccable:impeccable` skill——无一例外。**
+
+- 范围（都算 UI/UX）：visualizer 视觉/动效 · 字体 · 颜色 · 布局 · 组件 · 交互流程 · 信息架构 · 压扁/调色/间距/微调。
+- 即使是"小改动"、"再微调一下"、"同一组件再迭代一版"——都必须**在动手前**再调一次 skill（不沿用 session 内上次调用的上下文）。
+- 纯功能修复（audio/network/state 逻辑）不触发。
+- Why：impeccable 有系统化的审美原则 + AI slop 检测，凭感觉迭代会漂移回训练默认（border-left 彩条 / cyan-on-dark / 居中摄影景深 / 通用 visualizer 图表感等），即便前一版是 impeccable 出的也可能一步步漂走。
+- 违规信号：用户问"你调用 impeccable 了吗" = 上一轮失守，立即补调用并按原则重审视。
+
+设计上下文在 `.impeccable.md`。
 
 ## 唤醒上下文
 
