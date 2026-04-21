@@ -140,7 +140,7 @@ iPhone App
 
 ### 设计理念
 
-**产品定位**：氛围电台（Ambient Radio）— 不是播放器，是电台。选台就完了。
+**产品定位**：氛围电台（Mood Radio）— 不是播放器，是电台。选台就完了。
 **交互原则**：零引导 — 所有操作必须自解释，不需要任何教程或提示。
 **UI 语言**：全英文（面向英文用户为主）。
 
@@ -329,7 +329,7 @@ enum StyleCategory: String, CaseIterable, Codable {
 ## Phase 2.6：产品框架终稿（ChatGPT 整理版）
 
 ### 品牌
-**Simone — AI Ambient Radio**
+**Simone — AI Mood Radio**
 
 ### 产品方向
 像**电台**，不像工具。  
@@ -474,9 +474,10 @@ v1.0 上架版采取「全功能免费解锁、无试用限制」策略简化提
 | v1.1.0 | 稳定性 | 1.5 周 | 1.5 周 | ✅ 2026-04-16 完成 |
 | v1.1.1 | 交互重塑 | 2 周 | 3.5 周 | ✅ 2026-04-18 确认已 ship 到 iOS main |
 | v1.2 | Fog 视觉重设计 | 2 周 | 5.5 周 | ✅ 2026-04-19 全部闭环并 merge 到 iOS main（`842b589`） |
-| v1.3 | 商业化 | 1 周 | 6.5 周 | 📋 待启动 brainstorm |
-| v2.0 | 音乐表现力 | 2 周 | 8.5 周 | 📋 brainstorm 已做，待实施 |
-| v2.1 | 平台集成 | 2 周 | 10.5 周 | 📋 brainstorm 已做，待实施 |
+| v1.2.1 | Evolve 深度化（付费前置） | 1 周 | 6.5 周 | 🧪 2026-04-19 P0-P4 已落地：build 11 已提交 App Store 审核（WAITING_FOR_REVIEW），撤回了 v1.2 未审核提交 |
+| v1.3 | 商业化 | 1 周 | 7.5 周 | 📋 v1.2.1 TF 验证达标后启动 |
+| v2.0 | 音乐表现力（剩余） | 1.5 周 | 9 周 | 📋 brainstorm 已做，Evolve 深度化已前置 |
+| v2.1 | 平台集成 | 2 周 | 11 周 | 📋 brainstorm 已做，待实施 |
 
 ---
 
@@ -638,6 +639,74 @@ v1.0 上架的视觉是功能优先快速成型版本，老鱼在 v1.1 交互重
 
 ---
 
+## v1.2.1 —— Evolve 深度化（付费前置，2026-04-19 立项）
+
+**状态**：✅ 2026-04-19 晚直提 App Store 审核（撤回了 v1.2 的 pending 提交）。锚点 tag `v1.2.1-pre-evolve-depth` + feature 分支 `feature/v1.2.1-evolve-depth` HEAD `75a187d` · build 11 (Delivery UUID `733c2d23-f6b9-46fe-b96c-6b54d583c43d`) 已 attach 到 v1.2.1 版本 `c1c8fa7d`，submission `b76bd517` state=WAITING_FOR_REVIEW。
+
+### 为什么插这一层
+
+2026-04-19 战略讨论中老鱼确认当前体感——**Lock 挡 5-10 分钟腻，开 Evolve 撑到 15 分钟**。这意味着 Simone 只覆盖"睡前"一个核心场景，通勤（20-30 分钟）/ 工作（30-90 分钟）/ 派对（60+ 分钟）全部撑不住。
+
+直接进 v1.3 收费的风险：7 天试用期里用户工作时开 20 分钟觉得烦就关，试用到期大概率不续订——D7 Free→Paid ≥ 3% 目标直接崩，MRR ≥ $100 成功判定碎。
+
+**战略立场（2026-04-19 确认）**：先收费，持续完善。但"达到付费最低门槛"是前置硬约束，不是锦上添花。v1.2.1 就是这个硬约束。
+
+### 核心抓手（从 v2.0 原抓手 B 升级）
+
+当前 Evolve 实现（v1.1.1 已落地 `EvolveVocabulary.swift`）：**词典轮转 + temperature 抖动**——结果是玄学波动，听感变化没有叙事。
+
+v1.2.1 升级方向：**按三个音乐维度分别调制**，让 Evolve 听起来"有方向"而不是"有随机"：
+
+- [ ] **instruments 维度**：每个频道定义 core / accent / optional 三层乐器池。Evolve 触发时从 accent / optional 层加减（如 Jazz 频道：core = piano/bass/drums；accent = saxophone/trumpet；optional = vibraphone/flute/strings）。加减动作受 Evolve 挡位约束：10s 挡每次 ±1 件 optional、1m 挡 ±1 件 accent、5m 挡可能整组换
+- [ ] **density 维度**：新增 density 标量（0.3-1.0），映射到 prompt 里的"sparse/moderate/dense/full arrangement"描述词。Evolve 在 ±0.15 范围内随机走
+- [ ] **energy 维度**：新增 energy 标量（0.3-1.0），映射到"laid-back/steady/driving/intense"。同样 ±0.15 随机走
+- [ ] **三维度独立触发**：每次 Evolve tick 随机挑 1-2 个维度改（不全改），避免"突变"感，符合 Phase 2.6 "不做突然风格转变"红线
+- [ ] **Lock 挡真锁死**：Lock 模式三个维度全部冻结当前值，不抖 temperature——真正的"稳住别变"
+
+### 实施范围（单文件 + 一个新模型，风险极小）
+
+**改动文件**：
+- `Simone/Network/PromptBuilder.swift` — 新增 instruments / density / energy 注入
+- `Simone/Network/EvolveVocabulary.swift` — 从词典库升级为三维度调制器
+- `Simone/Models/Channel.swift` — 每个 channel 补 `instrumentPool: (core, accent, optional)` 字段
+- `Simone/Models/AppState.swift` — 暴露 `currentDensity` / `currentEnergy`（仅内部状态，不上 UI）
+
+**不碰**：AudioEngine、LyriaClient、Visualizer、Views 全系。纯 prompts 侧升级，**可逆性极强（revert `EvolveVocabulary.swift` 即回到 v1.2 行为）**。
+
+### 实施阶段
+
+- [x] **P0 · Checkpoint**：iOS main 打 tag `v1.2.1-pre-evolve-depth`（2026-04-19）
+- [x] **P1 · Channel 乐器池定义**：`StyleCategory.instrumentPool` 5 频道 core/accent/optional 三层 + 5 legacy 映射；`InstrumentPool` struct 落在 `Simone/Models/PromptState.swift`
+- [x] **P2 · EvolveVocabulary 升级为三维度调制器**：状态调制器实装在 `AppState.evolve()` + `evolveInstruments()` + `toggleOne()`；按挡位分流（Lock=nop / 30s=optional ±1 / 1m=70% accent + 30% optional / 5m=整组 reshuffle）；`ScalarWalk` 游走 density/energy。老 `EvolveVocabulary.swift` 词典保留做 `PromptBuilder.evolveVariant` 的降级兜底
+- [x] **P3 · PromptBuilder 注入**：`build(style:activeAccents:activeOptionals:density:energy:)` 新签名走 dedupe 去重 + 四档 `PromptPhrase` 描述词注入，老签名 `build(style:)` 保留给 selectStyle/regenerate 路径
+- [x] **P4 · 直提 App Store 审核**（2026-04-19 晚，CEO 拍板跳过 TF 灰度）：build 11 上传 ASC `733c2d23…` → 撤回 v1.2 pending 提交 → 重命名 v1.2 version record 为 v1.2.1（规避 409 create conflict）→ 推 ASC 元数据（subtitle/promotional/description/whatsNew，CEO 反馈"比 v1.2 精简易懂"）→ attach build 11 → 提交审核 · submission `b76bd517` state=WAITING_FOR_REVIEW
+
+### 验收标准（硬性）
+
+**老鱼自测体感**：
+- Lock 挡：守 30 分钟音乐应该几乎不变（当前 5-10 分钟就腻 → 期望 ≥ 20 分钟稳住）
+- 10s 挡：守 30 分钟应该能听出至少 5 次"有乐器加减"的瞬间，但不换台
+- 1m 挡：守 60 分钟应该有明显"能量曲线"（加进来、稳住、减下去）
+- **总体目标：从 15 分钟腻 → 撑 30+ 分钟不想切**
+
+**验收不通过的预案**：
+- 如果 P4 灰度后老鱼还是 15-20 分钟腻 → 补做抓手：把 v2.0 抓手 A（频谱视觉三层耦合驱动）的高频层 + 低频层一起提前。**视觉跟上听觉的变化，双管齐下治疲劳**
+- 如果 P4 灰度后撑到 30+ 分钟 → 直接进 v1.3 商业化
+
+### 红线（沿用 Phase 2.6）
+
+- ❌ 不做"突然风格转变"——每次 Evolve 最多改 2 个维度
+- ❌ 不做"跨频道漂移"——Jazz 不会 Evolve 成 Electronic
+- ❌ 不做 UI 暴露——density / energy 是后台状态，不给 Studio 档之外的用户看（v2.0 再开放）
+
+### 可逆性
+
+- Revert `EvolveVocabulary.swift` 回到 v1.2 行为
+- Channel.swift 新增字段是 additive，老逻辑不受影响
+- `currentDensity` / `currentEnergy` 默认 0.6（中等），旧代码读不到也安全
+
+---
+
 ## v1.3 —— 商业化（Phase E + StoreKit 2 + Phase 2.5 付费分层真接入）
 
 **目标**：Flow/Tune/Studio 付费分层真生效，早期用户红利锁定。
@@ -658,9 +727,11 @@ v1.0 上架的视觉是功能优先快速成型版本，老鱼在 v1.1 交互重
 
 ---
 
-## v2.0 —— 音乐表现力（Phase C + Smart Adapt + Phase 2.5 Evolve 深度）
+## v2.0 —— 音乐表现力（剩余：Phase C + Smart Adapt + 频谱三层耦合）
 
-**目标**：解决听久疲劳、频谱看腻（老鱼原话："现在的频谱太单调了"）。
+**目标**：解决频谱看腻 + 场景自适应（老鱼原话："现在的频谱太单调了"）。
+
+**注：原抓手 B（Evolve 深度算法）已于 2026-04-19 提前至 v1.2.1 作为付费前置，不在 v2.0 范围内。**
 
 ### 抓手 A：频谱视觉表现力重塑（实施前再写 spec 到 `docs/superpowers/specs/`）
 
@@ -679,11 +750,11 @@ v1.0 上架的视觉是功能优先快速成型版本，老鱼在 v1.1 交互重
 
 **Scope 硬约束**：只改 `VisualizerStyle.allCases` 枚举里的 **11 个**（horizon/ringPulse/terrain/rainfall/helix/lattice/prism/matrix/flora/glitch/oscilloscope），`Views/Visualizers/` 目录下不在枚举里的文件是老鱼否掉的，不碰。主页 UI 零视觉改动。
 
-### 抓手 B-E：音乐侧（独立 commit）
+### 抓手 C-E：音乐侧（独立 commit）
 
-- [ ] B：Evolve 深度算法（prompts 维度改 instruments / density / energy，不只 temperature 抖动）
-- [ ] C：BPM UI 开放（AppState.bpm 已有字段，暴露到 SettingsView 滑块）
-- [ ] D：Slow Jam 推荐机制（基于播放时长 + 收藏行为推荐频道）
+- [x] ~~B：Evolve 深度算法~~ → **已提前至 v1.2.1 实施**
+- [ ] C：BPM UI 开放（AppState.bpm 已有字段，暴露到 SettingsView 滑块，Studio 档独享）
+- [ ] D：Slow Jam 推荐机制（基于播放时长 + 收藏行为推荐频道；依赖 v1.3 收藏数据）
 - [ ] E：Smart Adapt（Phase 2.5 遗留）—— Time-aware 必做（早上明亮/深夜低沉），Weather-aware 可选
 
 **关键文件**：`AudioEngine.swift` / `AppState.swift` / `SpectrumCarouselView.swift` / `Views/Visualizers/`（11 个）/ `PromptBuilder.swift` / `SettingsView.swift`
