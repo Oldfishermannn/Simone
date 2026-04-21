@@ -7,7 +7,7 @@
 
 | 角色 | 状态 | 当前任务 / 最新交付 | 更新时间 |
 |---|---|---|---|
-| COO 小克（主窗口） | 🟡 WORKING | v1.4a Part 3 Lo-fi Signature 开工：branch `feature/v1.4a-signature-lofi` off main，按 plan M1-M5 落（GrainMaterial → LofiSignatureView → Settings flag → 颜色/Evolve → 交 CEO 审）· 换 iOS Engineer 帽子实施 | 2026-04-21 |
+| COO 小克（主窗口） | ✅ DONE | v1.4a Part 3 Lo-fi Signature 全 5 个 M 落地（inner repo branch `feature/v1.4a-signature-lofi` off main, HEAD `6807df9`）· M1 GrainMaterial `e6a0caf` · M2 LofiSignatureView `f9cebd2` · M3 VisualizationMode flag + Settings "Art" row + SpectrumCarousel/Immersive dispatch `5887ad2` · M4 Evolve hook ±10% + 玉粉黛 #e8c8be 校色 `6807df9` · clean build passed on iPhone 17 Pro · Xcode 已为老鱼打开等 Cmd+R | 2026-04-21 |
 | Strategist | ✅ DONE | Signature draft + plan 双交付：[`draft`](docs/v1.4a-signature-visualizers-draft.md)（5 频道全语法 3 配方）+ [`plan`](docs/v1.4a-signature-visualizers-plan.md)（CEO 拍板跳 Part 1/2 直上 Lo-fi 单频道单审 · M1-M5 里程碑 · 独立分支 `feature/v1.4a-signature-lofi` off main 不碰 v1.3 · 3-4 天完工 · COO 接手/clear 接力 prompt 已备）· 审过 Lo-fi 再按模板开 Jazz/Rock/R&B/Electronic | 2026-04-21 |
 | PM | 🟡 WORKING（待上岗） | 本轮：v1.3 商业化文案预启动 → docs/v1.3-appstore-copy-draft.md | 2026-04-19 16:58 |
 | Release Engineer | ✅ DONE | v1.2.1 build 11 submit to App Store 完成（COO 直操 push_metadata.py）· 撤 v1.2 pending · version record rename 1.2→1.2.1 · WAITING_FOR_REVIEW | 2026-04-19 23:08 |
