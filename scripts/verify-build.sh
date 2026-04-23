@@ -16,7 +16,7 @@ if [ ! -d "$PROJ" ]; then
 fi
 
 CMD=(xcodebuild -project "$PROJ" -scheme Simone \
-  -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   -configuration Debug build)
 
 if [ "$BG_FLAG" = "--background" ]; then
