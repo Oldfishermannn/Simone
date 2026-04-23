@@ -35,7 +35,7 @@
 
 每次 TestFlight / App Store 发布后启动 canary 监控，别发完就跑。
 
-**发版前基线**（强烈建议）：记录当前 App Store Connect 的 crash rate、1 星比例、日活、崩溃 top-5 symbol 到 `docs/canary/v<prev>-baseline.md`，作为对比参照。
+**发版前基线**（强烈建议）：记录当前 App Store Connect 的 crash rate、1 星比例、日活、崩溃 top-5 symbol 到 `docs/team-status.md` Release Engineer 行底部，作为对比参照。
 
 **发版后 10 分钟内每 2 分钟检查一次**：
 - App Store Connect 审核状态变化
@@ -49,7 +49,7 @@
 - 🟡 新的 1-2 星 review 出现
 - 🟢 10 分钟平静过了 → 降频到每 30 分钟一次共 2 小时
 
-监控结束写 `docs/canary/v<version>-report.md`：每个指标 before/after + verdict（healthy / degraded / broken）。
+监控结束把 verdict（healthy / degraded / broken）写进 `docs/team-status.md` 自己那行。
 **只跟基线比，不跟行业标准比。**
 
 ## 硬规矩

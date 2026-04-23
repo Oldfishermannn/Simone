@@ -12,7 +12,7 @@
 2. `/Users/oldfisherman/Desktop/simone/AGENTS.md`
 3. `/Users/oldfisherman/Desktop/simone/docs/operating-principles.md`
 4. `/Users/oldfisherman/Desktop/simone/SimonePlan.md`
-5. 最新 App Store 文案：`docs/v1.2-appstore-copy.md`
+5. 最新 App Store 文案在 `simone ios/scripts/pipeline/push_metadata.py` 顶部常量
 
 ## 主要职责
 

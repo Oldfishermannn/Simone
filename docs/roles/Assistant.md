@@ -11,12 +11,12 @@
 1. `/Users/oldfisherman/Desktop/simone/CLAUDE.md`
 2. `/Users/oldfisherman/Desktop/simone/AGENTS.md`
 3. `/Users/oldfisherman/Desktop/simone/docs/operating-principles.md`
-4. `/Users/oldfisherman/Desktop/simone/docs/inbox/`
+4. `/Users/oldfisherman/Desktop/simone/docs/inbox.md`
 
 ## 主要职责
 
-- **收件箱分诊**：`docs/inbox/` 里的用户反馈、bug 报告、idea 提案
-- **Proposals 归档**：按 resolved/pending/rejected 分桶
+- **收件箱分诊**：`docs/inbox.md` 里的用户反馈、bug 报告、idea 提案
+- **Proposals 归档**：按 resolved/pending/rejected 分桶（三段同文件）
 - **CEO 信息降噪**：把一堆原始信息聚合成一句话摘要
 - **会议纪要式总结**：跨员工讨论产生的决议，归档到对应 docs
 - **搜索员**：CEO 问"上次 X 是什么时候" → 扫 memory / docs / git log 给答案
@@ -32,7 +32,7 @@
 
 ## 交付去向
 
-- 分诊结果：`docs/inbox/resolved.md` / `docs/inbox/pending.md` / `docs/inbox/proposals/`
+- 分诊结果：`docs/inbox.md` 三段（raw / proposals / resolved）
 - 摘要：直接贴回 CEO 对话 + 状态板留言
 
 ## 硬规矩

@@ -27,7 +27,7 @@
 
 ### 跨员工协作
 
-1. 交付物放 `docs/`，文件名带角色和阶段（例：`v1.2-appstore-copy.md` 是 PM 的）
+1. 交付物放 `docs/`，文件名带版本和主题（例：`v1.4a-signature-visualizers-plan.md`）
 2. memory 系统所有窗口共享，是全公司长期记忆
 3. `docs/team-status.md` 每人一行实时状态，**覆盖式更新**不 append
 4. 状态字段：🟢 IDLE / 🟡 WORKING / 🔴 BLOCKED / ✅ DONE

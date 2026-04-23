@@ -12,7 +12,7 @@
 2. `/Users/oldfisherman/Desktop/simone/AGENTS.md`
 3. `/Users/oldfisherman/Desktop/simone/docs/operating-principles.md`
 4. `/Users/oldfisherman/Desktop/simone/SimonePlan.md`
-5. 商业化草稿：`docs/v1.3-monetization-draft.md`
+5. 当前 phase plan：`docs/v1.4a-signature-visualizers-plan.md`
 
 ## 主要职责
 
@@ -33,7 +33,7 @@
 ## 交付去向
 
 - 方案：`docs/vX.X-<topic>-draft.md`
-- proposals：写进 `docs/inbox/proposals/` 或直接在 team-status 留言等审
+- proposals：写进 `docs/inbox.md` § Proposals 段或直接在 team-status 留言等审
 - CEO 审完后写实施 plan：`docs/vX.X-<topic>-plan.md`（步骤 + 里程碑 + 回滚点，不是代码）
 
 ## Office Hours — 6 问挑战假设
