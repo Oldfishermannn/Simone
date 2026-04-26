@@ -1,99 +1,68 @@
 # Simone 路线图
 
-> 战略 v2.1 起点：2026-04-25（v1.3.0 已上架）。
-> 路径：**Retention First + iPad 适配**（CEO 2026-04-25 拍板）。
+> 起点：2026-04-26（v1.3.0 已上架，工艺重置）
+> 节奏：**做完一件 ship 再说下一件**——不堆 5 周表，不写"4 周内有数字决策"的伪科学
 
 ---
 
 ## TL;DR
 
 - **现状**：v1.3.0 ✅ LIVE 2026-04-25，零收入
-- **成本**：Lyria API **免费**（无 burn rate 压力）
-- **战略**：抬留存 → 观测 30 天 → 看数据决定 paywall
-- **顺序**：先稳 → 再变 → 再美 → **再黏（系统集成 + iPad）→ 再签名 → 再观测 → 再赚**
-- **节奏**：1 周 1 主抓手，5 周内有数字决策
+- **成本**：Lyria API 当前免费（experimental status，**不当永久前提**）
+- **战略**：Retention First——抬留存优先级 > 货币化时机
+- **节奏**：一周 1 抓手，ship 完看反馈决定下一件，不预排 5 周表
 
 ---
 
-## 战略核心
+## 当前主线 — iPad 适配
 
-**留存 > 货币化**——API 免费意味着不靠 paywall 续命，可以慢慢挑时机。
+**为什么先做这个**：iPad 适配把单设备 app 变跨设备，受众面 ×1.5；Visualizer 大屏渲染天然 wow；首屏改观最大。
 
-**Why Retention First**：visualizer / 签名美学不抬 D7。锁屏 ◁▷ + Widget 是日常使用 anchor。iPad 把单设备 app 变跨设备，受众 ×1.5。
+**进度**（branch `feature/v2.1-ipad-adapt` cb26580）：
+- ✅ Phase 0+1+2+3：UIRequiresFullScreen=false / Onboarding 居中 / transport size class / spacer ratio
+- 🟡 Phase 4：CEO Cmd+R iPad sim 验最终效果 → 决定是否 merge
 
-**砍掉**：v1.4a 其余 4 频道 signature（Jazz/Rock/R&B/Electronic）· v1.4b Studio 档兑现 · 38 通用 visualizer 池清理 — 全等留存数据再说。
-
----
-
-## 5 周节奏
-
-### Week 1 — 系统集成（锁屏 + Widget）
-
-- [ ] 锁屏 Now Playing：标题 / artwork / ◁▷ 切站（不是 evolve）
-- [ ] 中号 Widget：显示当前 station + style，tap 进 app 直达
-- [ ] artwork 用当前 visualizer 帧快照（不要静态图）
-- **验收**：CEO 自测每天打开 ≥ 5 次（之前 ~1 次）
-
-### Week 2 — Lo-fi Signature Visualizer
-
-- [ ] 走原 `docs/v1.4a-signature-visualizers-plan.md` M1-M5
-- [ ] 分支 `feature/v1.4a-signature-lofi`（已存在）
-- **验收**：首屏 Lo-fi station 视觉成型，press-ready 截图素材
-
-### Week 3-4 — iPad 适配
-
-- [ ] Universal app 验证（pbxproj target 是否 already universal）
-- [ ] ContentView size-class 适配（竖屏 / 横屏 / Stage Manager）
-- [ ] ImmersiveView + SpectrumCarousel 大屏 layout（不简单 scale）
-- [ ] Visualizer 大屏渲染（粒子密度 / line thickness 跟尺寸走）
-- [ ] OnboardingView iPad 排版
-- [ ] iPad AppIcon 尺寸全套（76/152/167/1024）
-- [ ] 4 种 iPad 模拟器实机测：mini / 11" / 13" / Pro 12.9"
-- **验收**：iPad 真实截图（不再 letterbox），ASC iPad slot 重新上传
-
-### Week 5 — 观测期
-
-- **不加功能**，只 bug fix
-- 收集：D1 / D7 / D14 install→active 比 · App Store review 文字 · CEO 自测时长
-- **决策点**：
-  - D7 > 25% → 进 Week 6 ship paywall
-  - D7 < 25% → 不卖钱，回 W1 加新留存抓手（评估 Spotify import / Jam 模式 / 锁屏 evolve）
-
-### Week 6 — Paywall（条件触发）
-
-- [ ] 复活 `StoreKitManager.swift`（v1.3 已写骨架）
-- [ ] Free 池：30min / 1h / 2h / day（🔴 CEO 拍）
-- [ ] Tier 1：$2.99/mo unlimited（🔴 CEO 拍价格）
-- [ ] Tier 2 暂不上（Studio 档等真用户再做）
-- [ ] StoreKit 2 Introductory Offer：前 14 天 50% off
+**ship 完才决定下一件**。
 
 ---
 
-## 待 CEO 拍板（🔴）
+## ship 完 iPad 后的候选池（不排顺序，看反馈再选）
 
-仅 Week 5/6 触发时再问，现在不占 CEO 认知：
-1. paywall 价格（$2.99 / $4.99 / $9.99）
-2. free 池阈值（30min / 1h / 2h × day）
-3. D7 决策阈值（默认 25%，可调 20-30%）
+- **锁屏 ◁▷ + Widget**：Now Playing artwork / 切站；中号 Widget tap 进 app
+- **Lo-fi Signature Visualizer 收尾**（Lo-fi 已在 main，剩 4 个 commit 在 `feature/v1.4a-signature-lofi`）
+- **paywall 骨架完工**（StoreKitManager 已写骨架，receipts 接好但不挂 UI——Lyria 收费当天才启用）
+- **audio metrics**：os_log packet 间隔 / queue depth / underrun count，下次 stutter 不再凭"听感"猜
+- **AppState 拆分**：Selection / Playback / Persistence 三文件，god class 瘦身
 
 ---
 
 ## 不再做（明确砍掉）
 
-- v1.4a Jazz / Rock / R&B / Electronic signature——除非 Lo-fi 上线后 review 明确要求
-- v1.4b Studio 档功能（多风格混合 / 离线 / 导出 / Custom Visualizer）——0 付费用户 = 0 优先级
-- 38 通用 visualizer 池清理——留着，等 v1.4b 真做再评估
-- Mac 版（独立上架）——iPad 适配吃掉跨设备需求，Mac 等 v2.0
-- CloudKit 同步——0 用户跨设备 = 0 优先级
-- Money / billing 监控——Lyria API 免费，不需要
+- **Mac 版**——iPad 适配吃掉跨设备需求，砍 `simone mac/` 子目录，要做随时 re-init
+- **v1.4a Jazz / Rock / R&B / Electronic signature 的扩展**——Lo-fi 收尾即可（RnB + Electronic 已写的 view 移 _archive）
+- **v1.4b Studio 档功能**（多风格混合 / 离线 / 导出 / Custom Visualizer）——0 付费用户 = 0 优先级
+- **5 周决策表 + W5 D7 阈值 binary trigger**——sample size 不支撑，决策表是 ceremony
+- **CloudKit 同步**——0 用户跨设备 = 0 优先级
+- **Money / billing 监控**——Lyria 当前免费，paywall 启用时再加
+
+---
+
+## 待 CEO 拍板（🔴）
+
+仅 paywall 真要启用时再问：
+1. 价格档（推荐 $2.99/mo unlimited 单档，不堆 Tier 2/3）
+2. free 池阈值（推荐 1h/day，不堆 30min/2h/day 三档）
+3. Introductory Offer（推荐前 14 天 50% off）
+
+**现在不占 CEO 认知**——等 Lyria 收费或 D30 留存数据明确再问。
 
 ---
 
 ## 执行原则
 
-- 串行：上一周抓手 ship 前不开下一周
+- **做完一件再开下一件**——上一件 ship 前不开新分支
 - 改完代码立刻 push（CEO 看 App Store / TestFlight）
-- 每周一覆盖更新 `docs/team-status.md`
-- Phase 切换走 `CLAUDE.md` Context 防爆 SOP
+- 状态变化覆盖更新 `docs/team-status.md`
+- COO 单角色 + 必要时 spawn subagent 做并行——不再 7 角色切窗口
 
 分工见 `AGENTS.md`。实时状态看 `docs/team-status.md`。
