@@ -39,7 +39,7 @@
 ## 不再做（明确砍掉）
 
 - **Mac 版**——iPad 适配吃掉跨设备需求，砍 `simone mac/` 子目录，要做随时 re-init
-- **v1.4a Jazz / Rock / R&B / Electronic signature 的扩展**——Lo-fi 收尾即可（RnB + Electronic 已写的 view 移 _archive）
+- **v1.4a Jazz / Rock / Ambient signature 扩展**——RnB + Electronic Signature 已在 main 活跃（SpectrumCarousel + ImmersiveView 直接 dispatch），保留；Lo-fi 收尾这版后不再开新频道 signature
 - **v1.4b Studio 档功能**（多风格混合 / 离线 / 导出 / Custom Visualizer）——0 付费用户 = 0 优先级
 - **5 周决策表 + W5 D7 阈值 binary trigger**——sample size 不支撑，决策表是 ceremony
 - **CloudKit 同步**——0 用户跨设备 = 0 优先级
